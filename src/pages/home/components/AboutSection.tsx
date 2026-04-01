@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { brandAssets } from "@/config/media";
 
 export default function AboutSection() {
   return (
@@ -9,7 +10,7 @@ export default function AboutSection() {
           {/* Left card — Problem */}
           <div className="bg-[#fdf8f5] rounded-lg p-8 border border-orange-100">
             <img
-              src="https://storage.readdy-site.link/project_files/96e1aa26-0276-4892-81dd-6376d47ee6f1/bf0614c5-bb70-4523-af65-6061056bf11d_LOGO.png?v=95ffa72d886a43f132cd00bbd307319d"
+              src={brandAssets.aboutLogo}
               alt="Dleading Creative Designs"
               className="h-10 w-auto mb-5"
             />

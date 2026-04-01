@@ -2,6 +2,8 @@ import { useState, FormEvent } from "react";
 import Navbar from "../../components/feature/Navbar";
 import Footer from "../../components/feature/Footer";
 import CTASection from "../home/components/CTASection";
+import { getFormActionUrl } from "@/config/forms";
+import { stockImages } from "@/config/media";
 
 const packages = [
   {
@@ -148,6 +150,7 @@ const faqs = [
 export default function PPCPricing() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [formStatus, setFormStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [ppcFormError, setPpcFormError] = useState("");
   const [charCount, setCharCount] = useState(0);
 
   const handleAuditSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -155,6 +158,16 @@ export default function PPCPricing() {
     const form = e.currentTarget;
     const textarea = form.querySelector("textarea[name='business_description']") as HTMLTextAreaElement;
     if (textarea && textarea.value.length > 500) return;
+
+    setPpcFormError("");
+    const url = getFormActionUrl("ppcPricing");
+    if (!url) {
+      setPpcFormError(
+        "This form is not configured yet. Email info@creativedleading.co.uk or message us on WhatsApp."
+      );
+      setFormStatus("error");
+      return;
+    }
 
     setFormStatus("submitting");
     const data = new URLSearchParams();
@@ -170,7 +183,7 @@ export default function PPCPricing() {
     if (checked) data.set("platforms", checked);
 
     try {
-      const res = await fetch("https://readdy.ai/api/form/d74mf9f5hic0eqh318g0", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: data.toString(),
@@ -180,9 +193,11 @@ export default function PPCPricing() {
         form.reset();
         setCharCount(0);
       } else {
+        setPpcFormError("Something went wrong. Please try again or message us on WhatsApp.");
         setFormStatus("error");
       }
     } catch {
+      setPpcFormError("Something went wrong. Please try again or message us on WhatsApp.");
       setFormStatus("error");
     }
   };
@@ -408,7 +423,7 @@ export default function PPCPricing() {
               <div className="relative">
                 <div className="w-full h-80 md:h-96 rounded-xl overflow-hidden">
                   <img
-                    src="https://readdy.ai/api/search-image?query=professional%20digital%20marketing%20specialist%20analyzing%20pay%20per%20click%20campaign%20performance%20on%20large%20monitor%20showing%20google%20ads%20dashboard%20with%20colorful%20charts%20upward%20trending%20graphs%20and%20ROI%20metrics%20in%20modern%20clean%20office%20environment%20with%20warm%20orange%20desk%20lamp%20lighting&width=700&height=500&seq=ppcwhy01&orientation=landscape"
+                    src={stockImages.ppcWhy}
                     alt="PPC Campaign Management"
                     className="w-full h-full object-cover object-top"
                   />
@@ -497,7 +512,10 @@ export default function PPCPricing() {
                       Thanks! Our PPC team will review your details and send your free audit report within 24 hours.
                     </p>
                     <button
-                      onClick={() => setFormStatus("idle")}
+                      onClick={() => {
+                        setFormStatus("idle");
+                        setPpcFormError("");
+                      }}
                       className="mt-6 px-6 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-[#F69D01] to-[#F65901] hover:opacity-90 transition-opacity cursor-pointer whitespace-nowrap"
                     >
                       Submit Another Request
@@ -511,7 +529,6 @@ export default function PPCPricing() {
                     </div>
 
                     <form
-                      data-readdy-form
                       id="ppc-audit-form"
                       onSubmit={handleAuditSubmit}
                       className="space-y-4"
@@ -642,7 +659,9 @@ export default function PPCPricing() {
                           <div className="w-5 h-5 flex items-center justify-center text-red-500 shrink-0">
                             <i className="ri-error-warning-line text-base"></i>
                           </div>
-                          <p className="text-red-600 text-xs">Something went wrong. Please try again or message us on WhatsApp.</p>
+                          <p className="text-red-600 text-xs">
+                            {ppcFormError || "Something went wrong. Please try again or message us on WhatsApp."}
+                          </p>
                         </div>
                       )}
 

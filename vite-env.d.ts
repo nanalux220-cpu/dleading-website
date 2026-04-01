@@ -2,6 +2,14 @@
 
 declare const __BASE_PATH__: string;
 declare const __IS_PREVIEW__: boolean;
-declare const __READDY_PROJECT_ID__: string;
-declare const __READDY_VERSION_ID__: string;
-declare const __READDY_AI_DOMAIN__: string;
+
+interface ImportMetaEnv {
+  readonly VITE_FORM_CONTACT_URL?: string;
+  readonly VITE_FORM_LEAD_POPUP_URL?: string;
+  readonly VITE_FORM_WEBSITE_AUDIT_URL?: string;
+  readonly VITE_FORM_PPC_PRICING_URL?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

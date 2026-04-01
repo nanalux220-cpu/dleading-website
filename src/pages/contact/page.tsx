@@ -1,6 +1,8 @@
 import { useState, FormEvent } from "react";
 import Navbar from "../../components/feature/Navbar";
 import Footer from "../../components/feature/Footer";
+import { getFormActionUrl } from "@/config/forms";
+import { stockImages } from "@/config/media";
 
 const contactDetails = [
   {
@@ -42,16 +44,26 @@ const services = [
 export default function Contact() {
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [charCount, setCharCount] = useState(0);
+  const [contactErrorMsg, setContactErrorMsg] = useState("");
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setContactErrorMsg("");
+    const url = getFormActionUrl("contact");
+    if (!url) {
+      setContactErrorMsg(
+        "Contact form is not configured yet. Please email info@creativedleading.co.uk or message us on WhatsApp."
+      );
+      setStatus("error");
+      return;
+    }
     setStatus("sending");
     const form = e.currentTarget;
     const data = new URLSearchParams();
     const formData = new FormData(form);
     formData.forEach((value, key) => data.append(key, value.toString()));
     try {
-      const res = await fetch("https://readdy.ai/api/form/d74lhtsprit363gl0o00", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: data.toString(),
@@ -61,9 +73,11 @@ export default function Contact() {
         form.reset();
         setCharCount(0);
       } else {
+        setContactErrorMsg("Something went wrong. Please try again or reach us on WhatsApp.");
         setStatus("error");
       }
     } catch {
+      setContactErrorMsg("Something went wrong. Please try again or reach us on WhatsApp.");
       setStatus("error");
     }
   };
@@ -76,7 +90,7 @@ export default function Contact() {
       <section className="relative bg-[#111] overflow-hidden">
         {/* bg image */}
         <img
-          src="https://readdy.ai/api/search-image?query=modern%20digital%20agency%20office%20workspace%20Leeds%20creative%20team%20working%20on%20web%20design%20projects%20with%20orange%20accent%20lighting%20minimal%20interior&width=1440&height=480&seq=contact-hero-01&orientation=landscape"
+          src={stockImages.contactHero}
           alt=""
           className="absolute inset-0 w-full h-full object-cover object-top opacity-25"
         />
@@ -257,7 +271,10 @@ export default function Contact() {
                   Thanks for reaching out. Our team will get back to you within 2 business hours.
                 </p>
                 <button
-                  onClick={() => setStatus("idle")}
+                  onClick={() => {
+                    setStatus("idle");
+                    setContactErrorMsg("");
+                  }}
                   className="mt-6 px-7 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-[#F69D01] to-[#F65901] hover:opacity-90 transition-opacity cursor-pointer whitespace-nowrap"
                 >
                   Send Another Message
@@ -266,7 +283,6 @@ export default function Contact() {
             ) : (
               <form
                 onSubmit={handleSubmit}
-                data-readdy-form
                 id="contact-form-dleading"
                 className="space-y-5"
               >
@@ -372,7 +388,9 @@ export default function Contact() {
                     <div className="w-5 h-5 flex items-center justify-center text-red-500 shrink-0">
                       <i className="ri-error-warning-line text-base"></i>
                     </div>
-                    <p className="text-red-600 text-sm">Something went wrong. Please try again or reach us on WhatsApp.</p>
+                    <p className="text-red-600 text-sm">
+                      {contactErrorMsg || "Something went wrong. Please try again or reach us on WhatsApp."}
+                    </p>
                   </div>
                 )}
 

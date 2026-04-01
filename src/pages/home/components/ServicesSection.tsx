@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
+import { stockImages } from "@/config/media";
 
 const services = [
   {
     title: "Google Ads",
     description: "Start getting customers fast. We run targeted campaigns that put your business in front of people searching for your service right now.",
-    image: "https://readdy.ai/api/search-image?query=Google%20Ads%20dashboard%20on%20laptop%20screen%20showing%20pay-per-click%20campaign%20performance%20charts%20and%20metrics%20modern%20office%20desk%20setup%20professional%20digital%20marketing%20environment%20with%20warm%20orange%20ambient%20lighting%20clean%20background&width=600&height=400&seq=gads01&orientation=landscape",
+    image: stockImages.serviceGoogleAds,
     hash: "digital-marketing",
   },
   {
@@ -16,7 +17,7 @@ const services = [
   {
     title: "Google Business Optimisation",
     description: "Get found locally and build trust. We optimise your Google Business profile so you appear in local searches and stand out from competitors.",
-    image: "https://readdy.ai/api/search-image?query=Google%20Business%20Profile%20on%20mobile%20phone%20showing%20five%20star%20reviews%20and%20local%20business%20listing%20clean%20minimal%20white%20background%20with%20orange%20accent%20lighting%20professional%20business%20photography%20modern%20smartphone&width=600&height=400&seq=gbp01&orientation=landscape",
+    image: stockImages.serviceGbp,
     hash: "web-design",
   },
   {
@@ -46,13 +47,13 @@ const services = [
   {
     title: "Logo & Brand Design",
     description: "A strong brand builds instant trust. Stand out from every competitor in your area.",
-    image: "https://readdy.ai/api/search-image?query=professional%20logo%20design%20creative%20studio%20workspace%20with%20sketches%20branding%20concepts%20color%20palettes%20typography%20samples%20on%20clean%20white%20desk%20modern%20minimalist%20design%20agency%20environment%20with%20orange%20accent%20colors&width=600&height=400&seq=logo01&orientation=landscape",
+    image: stockImages.serviceLogo,
     hash: "logo",
   },
   {
     title: "Video Animation",
     description: "Explain what you do in 60 seconds and turn more website visitors into paying customers.",
-    image: "https://readdy.ai/api/search-image?query=professional%20video%20animation%20production%20studio%20with%20motion%20graphics%20on%20screen%20digital%20creative%20workspace%20with%20orange%20lighting%20accents%20modern%20design%20agency%20producing%20animated%20explainer%20videos%20and%20brand%20content&width=600&height=400&seq=video01&orientation=landscape",
+    image: stockImages.serviceVideo,
     hash: "video",
   },
 ];

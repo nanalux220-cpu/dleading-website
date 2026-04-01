@@ -2,6 +2,7 @@ import { useState } from "react";
 import Navbar from "../../components/feature/Navbar";
 import Footer from "../../components/feature/Footer";
 import CTASection from "../home/components/CTASection";
+import { stockImages } from "@/config/media";
 
 const packages = [
   {
@@ -370,7 +371,7 @@ export default function SMMPricing() {
               <div className="relative order-2 lg:order-1">
                 <div className="w-full h-80 md:h-[420px] rounded-xl overflow-hidden">
                   <img
-                    src="https://readdy.ai/api/search-image?query=social%20media%20marketing%20team%20creative%20agency%20working%20on%20content%20calendar%20phone%20photography%20instagram%20reels%20filming%20setup%20with%20warm%20orange%20studio%20lighting%20professional%20environment%20modern%20workspace%20Leeds%20UK%20digital%20marketing&width=700&height=500&seq=smmwhy01&orientation=landscape"
+                    src={stockImages.smmWhy}
                     alt="Social Media Marketing Team"
                     className="w-full h-full object-cover object-top"
                   />

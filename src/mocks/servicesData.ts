@@ -1,3 +1,5 @@
+import { stockImages } from "@/config/media";
+
 export interface ServiceItem {
   id: string;
   title: string;
@@ -141,7 +143,7 @@ export const servicesData: ServiceItem[] = [
     id: "video",
     title: "Video Animation",
     icon: "ri-film-line",
-    image: "https://readdy.ai/api/search-image?query=professional%20video%20animation%20production%20studio%20with%20motion%20graphics%20on%20screen%20digital%20creative%20workspace%20with%20orange%20lighting%20accents%20modern%20design%20agency%20producing%20animated%20explainer%20videos%20and%20brand%20content&width=800&height=500&seq=video01&orientation=landscape",
+    image: stockImages.mockVideo,
     shortDesc: "Captivating animated videos that tell your brand story, explain products, and engage audiences.",
     fullDesc: "From explainer animations to full brand videos, we bring your message to life through motion. Our animation team crafts visually compelling content that captures attention on social media, websites, and presentations. We handle everything from scripting and storyboarding to final delivery in any format you need.",
     features: ["Explainer Videos", "Social Media Animations", "Motion Graphics & Intros", "Brand Story Videos", "Script & Storyboard Included", "Voice-Over Services", "Multi-Format Delivery"],
@@ -162,7 +164,7 @@ export const servicesData: ServiceItem[] = [
     id: "digital-marketing",
     title: "Digital Marketing",
     icon: "ri-megaphone-line",
-    image: "https://readdy.ai/api/search-image?query=digital%20marketing%20strategy%20team%20working%20on%20social%20media%20campaigns%20analytics%20dashboard%20with%20charts%20and%20graphs%20modern%20office%20with%20orange%20brand%20accents%20professional%20marketing%20agency%20environment%20content%20creation&width=800&height=500&seq=digmkt01&orientation=landscape",
+    image: stockImages.mockDigitalMarketing,
     shortDesc: "Data-driven digital marketing strategies that grow your audience, increase leads, and boost revenue.",
     fullDesc: "Reach the right people at the right time with our comprehensive digital marketing services. We develop tailored strategies across social media, email, paid ads, and content marketing to drive measurable results. Every campaign is tracked, analysed, and continuously optimised to maximise your return on investment.",
     features: ["Social Media Marketing", "Google & Meta Ads (PPC)", "Email Marketing Campaigns", "Content Marketing Strategy", "Monthly Analytics Reports", "Audience Research", "Competitor Analysis"],
@@ -183,7 +185,7 @@ export const servicesData: ServiceItem[] = [
     id: "ppc",
     title: "Pay Per Click Advertising (PPC)",
     icon: "ri-cursor-line",
-    image: "https://readdy.ai/api/search-image?query=pay%20per%20click%20advertising%20google%20ads%20campaign%20dashboard%20showing%20clicks%20conversions%20ROI%20graphs%20modern%20marketing%20agency%20workspace%20with%20orange%20accents%20laptop%20screen%20displaying%20PPC%20analytics%20and%20keyword%20bids%20professional%20team&width=800&height=500&seq=ppc01&orientation=landscape",
+    image: stockImages.mockPpc,
     shortDesc: "Instant visibility on Google and social platforms with highly targeted ad campaigns that deliver measurable ROI.",
     fullDesc: "Stop waiting for organic traffic — PPC puts your business in front of the right people immediately. Our certified Google Ads and Meta Ads specialists build laser-targeted campaigns that maximise every penny of your ad spend. From keyword research and ad copywriting to landing page optimisation and daily bid management, we handle everything while you watch the leads roll in.",
     features: ["Google Ads (Search & Display)", "Meta Ads (Facebook & Instagram)", "Keyword Research & Bid Strategy", "Ad Copywriting & Creative", "Landing Page Optimisation", "Daily Campaign Management", "Monthly ROI Reports"],
@@ -204,7 +206,7 @@ export const servicesData: ServiceItem[] = [
     id: "social-media-marketing",
     title: "Social Media Marketing",
     icon: "ri-instagram-line",
-    image: "https://readdy.ai/api/search-image?query=social%20media%20marketing%20content%20creation%20studio%20with%20phone%20showing%20instagram%20and%20facebook%20posts%20creative%20agency%20workspace%20with%20warm%20orange%20tones%20modern%20professional%20environment%20content%20planning%20calendar%20and%20brand%20color%20palette%20visible&width=800&height=500&seq=smm01&orientation=landscape",
+    image: stockImages.mockSmm,
     shortDesc: "Build a loyal community and grow your brand across Facebook, Instagram, TikTok, and LinkedIn.",
     fullDesc: "Social media is where your customers spend their time — and we make sure your brand is there, looking brilliant. Our social media team creates engaging, on-brand content tailored to each platform, manages your community, and runs data-driven campaigns to grow your following and generate real business leads.",
     features: ["Facebook & Instagram Management", "TikTok & LinkedIn Strategy", "Content Creation & Scheduling", "Community Management & Replies", "Paid Social Ad Campaigns", "Hashtag & Audience Research", "Monthly Growth Analytics"],

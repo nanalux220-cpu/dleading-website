@@ -1,4 +1,5 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { brandAssets } from "@/config/media";
 
 const quickLinks = [
   { label: "About Us", path: "/about" },
@@ -40,7 +41,7 @@ export default function Footer() {
         <div>
           <a href="/" onClick={handleLogoClick} className="inline-block mb-4">
             <img
-              src="https://storage.readdy-site.link/project_files/00d6bb05-2c0a-47a0-8a61-fb9c4ae4c88b/ca424a1e-e6ed-4c4c-b5de-79f1d503c12f_LOGO.png?v=95ffa72d886a43f132cd00bbd307319d"
+              src={brandAssets.logo}
               alt="Dleading Creative Designs"
               className="h-12 w-auto cursor-pointer"
             />

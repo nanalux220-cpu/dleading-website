@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from "react";
+import { getFormActionUrl } from "@/config/forms";
+import { stockImages } from "@/config/media";
 
 const STORAGE_KEY = "dleading_lead_captured_v2";
 
 type ChatPhase = "hidden" | "typing1" | "msg1" | "typing2" | "msg2" | "form" | "success" | "minimised";
 
 export default function LeadPopup() {
+  const agentAvatarUrl = stockImages.leadAvatar;
   const [phase, setPhase] = useState<ChatPhase>("hidden");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -81,8 +84,14 @@ export default function LeadPopup() {
     }
     setLoading(true);
     try {
+      const url = getFormActionUrl("leadPopup");
+      if (!url) {
+        setError("Form not configured. Email info@creativedleading.co.uk or use WhatsApp.");
+        setLoading(false);
+        return;
+      }
       const body = new URLSearchParams({ name: name.trim(), email: email.trim() });
-      const res = await fetch("https://readdy.ai/api/form/d74m1hivu4krcbn3b8m0", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: body.toString(),
@@ -141,7 +150,7 @@ export default function LeadPopup() {
               <div className="relative shrink-0">
                 <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/40">
                   <img
-                    src="https://readdy.ai/api/search-image?query=professional%20friendly%20young%20black%20man%20smiling%20headshot%20portrait%20clean%20white%20background%20business%20casual%20Leeds%20web%20designer&width=80&height=80&seq=agent-avatar-01&orientation=squarish"
+                    src={agentAvatarUrl}
                     alt="Elvis"
                     className="w-full h-full object-cover object-top"
                   />
@@ -180,7 +189,7 @@ export default function LeadPopup() {
                 <div className="flex items-end gap-2 chat-bubble-in">
                   <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
                     <img
-                      src="https://readdy.ai/api/search-image?query=professional%20friendly%20young%20black%20man%20smiling%20headshot%20portrait%20clean%20white%20background%20business%20casual%20Leeds%20web%20designer&width=80&height=80&seq=agent-avatar-01&orientation=squarish"
+                      src={agentAvatarUrl}
                       alt="Elvis"
                       className="w-full h-full object-cover object-top"
                     />
@@ -196,7 +205,7 @@ export default function LeadPopup() {
                 <div className="flex items-end gap-2">
                   <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
                     <img
-                      src="https://readdy.ai/api/search-image?query=professional%20friendly%20young%20black%20man%20smiling%20headshot%20portrait%20clean%20white%20background%20business%20casual%20Leeds%20web%20designer&width=80&height=80&seq=agent-avatar-01&orientation=squarish"
+                      src={agentAvatarUrl}
                       alt="Elvis"
                       className="w-full h-full object-cover object-top"
                     />
@@ -216,7 +225,7 @@ export default function LeadPopup() {
                 <div className="flex items-end gap-2 chat-bubble-in">
                   <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
                     <img
-                      src="https://readdy.ai/api/search-image?query=professional%20friendly%20young%20black%20man%20smiling%20headshot%20portrait%20clean%20white%20background%20business%20casual%20Leeds%20web%20designer&width=80&height=80&seq=agent-avatar-01&orientation=squarish"
+                      src={agentAvatarUrl}
                       alt="Elvis"
                       className="w-full h-full object-cover object-top"
                     />
@@ -234,7 +243,7 @@ export default function LeadPopup() {
                 <div className="flex items-end gap-2">
                   <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
                     <img
-                      src="https://readdy.ai/api/search-image?query=professional%20friendly%20young%20black%20man%20smiling%20headshot%20portrait%20clean%20white%20background%20business%20casual%20Leeds%20web%20designer&width=80&height=80&seq=agent-avatar-01&orientation=squarish"
+                      src={agentAvatarUrl}
                       alt="Elvis"
                       className="w-full h-full object-cover object-top"
                     />
@@ -255,7 +264,6 @@ export default function LeadPopup() {
                   {/* User reply placeholder */}
                   <form
                     onSubmit={handleSubmit}
-                    data-readdy-form
                     id="lead-popup-form"
                     className="bg-white rounded-2xl px-4 py-4 space-y-3"
                     style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}
@@ -329,7 +337,7 @@ export default function LeadPopup() {
                   <div className="flex items-end gap-2 mb-2">
                     <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
                       <img
-                        src="https://readdy.ai/api/search-image?query=professional%20friendly%20young%20black%20man%20smiling%20headshot%20portrait%20clean%20white%20background%20business%20casual%20Leeds%20web%20designer&width=80&height=80&seq=agent-avatar-01&orientation=squarish"
+                        src={agentAvatarUrl}
                         alt="Elvis"
                         className="w-full h-full object-cover object-top"
                       />

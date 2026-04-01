@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { brandAssets } from "@/config/media";
 
 const serviceDropdownItems = [
   { label: "Custom Website Design", path: "/services/web-design", hash: "", icon: "ri-layout-line" },
@@ -121,13 +122,13 @@ export default function Navbar() {
             <div className="relative h-10" style={{ minWidth: "130px" }}>
               {/* White logo — visible on transparent navbar */}
               <img
-                src="https://storage.readdy-site.link/project_files/00d6bb05-2c0a-47a0-8a61-fb9c4ae4c88b/8ed0b390-d114-4e17-b336-d8caf63c2d19_LOGO-WHITE-1.png?v=315d6e9ae226a162f8b49beb632314f4"
+                src={brandAssets.logoWhite}
                 alt="Dleading Creative Designs"
                 className={`h-10 w-auto transition-opacity duration-400 ${isTransparent ? "opacity-100" : "opacity-0"}`}
               />
               {/* Colour logo — visible on scrolled/sticky navbar */}
               <img
-                src="https://storage.readdy-site.link/project_files/00d6bb05-2c0a-47a0-8a61-fb9c4ae4c88b/ca424a1e-e6ed-4c4c-b5de-79f1d503c12f_LOGO.png?v=95ffa72d886a43f132cd00bbd307319d"
+                src={brandAssets.logo}
                 alt="Dleading Creative Designs"
                 className={`h-10 w-auto absolute top-0 left-0 transition-opacity duration-400 ${isTransparent ? "opacity-0" : "opacity-100"}`}
               />

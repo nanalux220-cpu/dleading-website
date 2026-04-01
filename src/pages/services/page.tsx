@@ -4,6 +4,7 @@ import Navbar from "../../components/feature/Navbar";
 import Footer from "../../components/feature/Footer";
 import CTASection from "../home/components/CTASection";
 import { servicesData } from "../../mocks/servicesData";
+import { getFormActionUrl } from "@/config/forms";
 
 const services = servicesData;
 
@@ -11,6 +12,7 @@ export default function Services() {
   const [activeService, setActiveService] = useState(services[0].id);
   const selected = services.find((s) => s.id === activeService) ?? services[0];
   const [auditStatus, setAuditStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [auditFormError, setAuditFormError] = useState("");
   const [charCount, setCharCount] = useState(0);
   const navigate = useNavigate();
 
@@ -27,6 +29,16 @@ export default function Services() {
     const textarea = form.querySelector("textarea[name='extra_notes']") as HTMLTextAreaElement;
     if (textarea && textarea.value.length > 500) return;
 
+    setAuditFormError("");
+    const url = getFormActionUrl("websiteAudit");
+    if (!url) {
+      setAuditFormError(
+        "This form is not configured yet. Email info@creativedleading.co.uk or message us on WhatsApp."
+      );
+      setAuditStatus("error");
+      return;
+    }
+
     setAuditStatus("submitting");
     const data = new URLSearchParams();
     new FormData(form).forEach((value, key) => {
@@ -34,7 +46,7 @@ export default function Services() {
     });
 
     try {
-      const res = await fetch("https://readdy.ai/api/form/d74mg72vu4krcbn3b8ug", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: data.toString(),
@@ -44,9 +56,11 @@ export default function Services() {
         form.reset();
         setCharCount(0);
       } else {
+        setAuditFormError("Something went wrong. Please try again or message us on WhatsApp.");
         setAuditStatus("error");
       }
     } catch {
+      setAuditFormError("Something went wrong. Please try again or message us on WhatsApp.");
       setAuditStatus("error");
     }
   };
@@ -204,7 +218,10 @@ export default function Services() {
                       Brilliant! Our team will analyse your website and send your free audit report within 24 hours.
                     </p>
                     <button
-                      onClick={() => setAuditStatus("idle")}
+                      onClick={() => {
+                        setAuditStatus("idle");
+                        setAuditFormError("");
+                      }}
                       className="mt-6 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-[#F69D01] to-[#F65901] hover:opacity-90 transition-opacity cursor-pointer whitespace-nowrap"
                     >
                       Submit Another Request
@@ -216,7 +233,7 @@ export default function Services() {
                       <h3 className="text-xl font-bold text-gray-900 mb-1">Request Your Free Audit</h3>
                       <p className="text-gray-500 text-xs">Fill in the details below — takes under 2 minutes.</p>
                     </div>
-                    <form data-readdy-form id="website-audit-form" onSubmit={handleAuditSubmit} className="space-y-4">
+                    <form id="website-audit-form" onSubmit={handleAuditSubmit} className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-semibold text-gray-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
@@ -286,7 +303,9 @@ export default function Services() {
                       {auditStatus === "error" && (
                         <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
                           <i className="ri-error-warning-line text-red-500 text-base shrink-0"></i>
-                          <p className="text-red-600 text-xs">Something went wrong. Please try again or message us on WhatsApp.</p>
+                          <p className="text-red-600 text-xs">
+                            {auditFormError || "Something went wrong. Please try again or message us on WhatsApp."}
+                          </p>
                         </div>
                       )}
                       <button type="submit" disabled={auditStatus === "submitting" || charCount > 500} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-[#F69D01] to-[#F65901] hover:opacity-90 transition-opacity cursor-pointer whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">

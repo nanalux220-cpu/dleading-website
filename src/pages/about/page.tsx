@@ -2,12 +2,13 @@ import { useState } from "react";
 import Navbar from "../../components/feature/Navbar";
 import Footer from "../../components/feature/Footer";
 import CTASection from "../home/components/CTASection";
+import { stockImages, brandAssets } from "@/config/media";
 
 const team = [
   {
     name: "Elvis Ofori",
     role: "Founder & Lead Designer",
-    image: "https://storage.readdy-site.link/project_files/96e1aa26-0276-4892-81dd-6376d47ee6f1/d00a6090-44d0-4dff-bae9-89a3efce30d3_WhatsApp-Image-2026-03-31-at-12.11.48-AM.jpeg?v=8205cb601a2a5211a6c2bbb45a7eeb58",
+    image: brandAssets.teamPhoto,
     bio: "Elvis founded Dleading Creative Designs with one mission — to give every business, no matter its size, a digital presence worthy of its ambition. With over 10 years crafting brands and websites across Leeds and the UK, he leads every project with strategy-first thinking and an obsession for design detail.",
     funFact: "Designed his first logo at 17 for a local barber shop in Leeds.",
     skills: ["React & Next.js", "JavaScript / TypeScript", "WordPress & PHP", "UI/UX Design", "Brand Identity", "Web Strategy"],
@@ -37,7 +38,7 @@ const team = [
   {
     name: "Aisha Patel",
     role: "Graphic & Brand Designer",
-    image: "https://readdy.ai/api/search-image?query=professional%20young%20british%20south%20asian%20woman%20graphic%20designer%20creative%20agency%20smiling%20confidently%20at%20camera%20wearing%20stylish%20casual%20professional%20outfit%20modern%20office%20environment%20warm%20orange%20accent%20lighting%20clean%20background%20Leeds%20UK&width=600&height=750&seq=team_aisha01&orientation=portrait",
+    image: stockImages.teamAisha,
     bio: "Aisha is the visual genius behind the logos, brand kits, print designs, and social media graphics that make our clients instantly recognisable. From quick logo briefs to full brand identity systems, she approaches every project like a creative puzzle.",
     funFact: "Has a sketchbook for every year since she was 14 — all still on her shelf.",
     skills: ["Logo Design", "Brand Identity", "Adobe Suite", "Social Media Graphics"],
@@ -47,7 +48,7 @@ const team = [
   {
     name: "Tom Bradley",
     role: "Social Media & Content Manager",
-    image: "https://readdy.ai/api/search-image?query=professional%20young%20british%20man%20social%20media%20manager%20content%20creator%20smiling%20confidently%20camera%20stylish%20smart%20casual%20outfit%20modern%20creative%20agency%20office%20warm%20lighting%20Leeds%20UK%20bright%20clean%20workspace%20background&width=600&height=750&seq=team_tom01&orientation=portrait",
+    image: stockImages.teamTom,
     bio: "Tom lives and breathes social media — from Instagram Reels to TikTok strategy to LinkedIn content that actually gets read. He manages social accounts for multiple clients simultaneously, keeping every feed fresh, on-brand, and growing.",
     funFact: "Created a viral TikTok for a Leeds coffee shop that brought in 300 new customers in a week.",
     skills: ["Content Creation", "Instagram & TikTok", "Community Management", "Paid Social"],
@@ -170,7 +171,7 @@ export default function About() {
         <section className="relative min-h-[480px] md:min-h-[560px] flex items-center overflow-hidden">
           <div className="absolute inset-0">
             <img
-              src="https://readdy.ai/api/search-image?query=modern%20creative%20digital%20agency%20office%20Leeds%20UK%20interior%20warm%20orange%20lighting%20designer%20team%20working%20at%20desks%20with%20large%20monitors%20stylish%20workspace%20minimalist%20decor%20professional%20bright%20atmosphere&width=1440&height=560&seq=about_hero_01&orientation=landscape"
+              src={stockImages.aboutHero}
               alt="Dleading Creative Designs team workspace"
               className="w-full h-full object-cover object-top"
             />
