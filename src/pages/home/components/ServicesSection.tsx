@@ -80,12 +80,12 @@ export default function ServicesSection() {
               <div className="p-5">
                 <h3 className="font-bold text-gray-900 text-base mb-2">{service.title}</h3>
                 <p className="text-gray-500 text-sm leading-relaxed mb-4">{service.description}</p>
-                <a
-                  href={`/services#${service.hash}`}
+                <Link
+                  to={`/services#${service.hash}`}
                   className="inline-block px-5 py-2 rounded-md text-xs font-semibold text-white bg-gradient-to-r from-[#F69D01] to-[#F65901] hover:opacity-90 transition-opacity cursor-pointer whitespace-nowrap"
                 >
                   Get Started
-                </a>
+                </Link>
               </div>
             </div>
           ))}
