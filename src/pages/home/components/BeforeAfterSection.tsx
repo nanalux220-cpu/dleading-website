@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { stockImages } from "@/config/media";
 
 const projects = [
   {
     id: 1,
     title: "Photography Portfolio",
     category: "Web Design",
-    after: "https://creativedleading.co.uk/wp-content/uploads/2025/04/photography-website.jpg",
-    before: "https://creativedleading.co.uk/wp-content/uploads/2025/04/photography-website.jpg",
+    after: stockImages.beforeAfterPhotography,
+    before: stockImages.beforeAfterPhotography,
     beforeFilter: "grayscale(1) contrast(0.65) brightness(0.75) sepia(0.3)",
     description: "Turned a flat, untrustworthy site into an immersive portfolio with a built-in booking system. Client saw enquiries double in the first 30 days.",
   },
@@ -14,8 +15,8 @@ const projects = [
     id: 2,
     title: "Cleaning Company Website",
     category: "Local Business",
-    after: "https://creativedleading.co.uk/wp-content/uploads/2025/04/cleaning-website.jpg",
-    before: "https://creativedleading.co.uk/wp-content/uploads/2025/04/cleaning-website.jpg",
+    after: stockImages.beforeAfterCleaning,
+    before: stockImages.beforeAfterCleaning,
     beforeFilter: "grayscale(1) contrast(0.6) brightness(0.7) sepia(0.4)",
     description: "Replaced an outdated template with a trust-first site featuring online booking and live reviews. Bookings increased within the first week of going live.",
   },
@@ -23,8 +24,8 @@ const projects = [
     id: 3,
     title: "E-Commerce Platform",
     category: "E-commerce",
-    after: "https://creativedleading.co.uk/wp-content/uploads/2025/04/E-commerce-website.jpg",
-    before: "https://creativedleading.co.uk/wp-content/uploads/2025/04/E-commerce-website.jpg",
+    after: stockImages.beforeAfterEcommerce,
+    before: stockImages.beforeAfterEcommerce,
     beforeFilter: "grayscale(1) contrast(0.55) brightness(0.65) sepia(0.35)",
     description: "Rebuilt a slow, leaking store into a high-converting platform. Revenue grew significantly after launch with a streamlined checkout flow.",
   },
@@ -32,8 +33,8 @@ const projects = [
     id: 4,
     title: "Graphic Design Studio",
     category: "Web Design",
-    after: "https://creativedleading.co.uk/wp-content/uploads/2025/04/graphic-design-website.jpg",
-    before: "https://creativedleading.co.uk/wp-content/uploads/2025/04/graphic-design-website.jpg",
+    after: stockImages.beforeAfterGraphicDesign,
+    before: stockImages.beforeAfterGraphicDesign,
     beforeFilter: "grayscale(1) contrast(0.6) brightness(0.7) sepia(0.3)",
     description: "Transformed a basic portfolio into a premium studio site that attracts higher-paying clients and commands better project rates.",
   },
@@ -101,6 +102,7 @@ function BeforeAfterSlider({ project }: SliderProps) {
         <img
           src={project.before}
           alt="Before"
+          referrerPolicy="no-referrer"
           className="w-full h-full object-cover object-top"
           style={{ filter: project.beforeFilter }}
           draggable={false}
@@ -117,6 +119,7 @@ function BeforeAfterSlider({ project }: SliderProps) {
         <img
           src={project.after}
           alt="After"
+          referrerPolicy="no-referrer"
           className="w-full h-full object-cover object-top"
           draggable={false}
         />
@@ -236,6 +239,7 @@ export default function BeforeAfterSection() {
                 <img
                   src={p.after}
                   alt={p.title}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
                 />
               </div>

@@ -11,7 +11,7 @@ const services = [
   {
     title: "SEO",
     description: "Grow your business long-term. We get your website ranking on Google so customers find you — without paying for every click.",
-    image: "https://creativedleading.co.uk/wp-content/uploads/2025/04/seo.jpg",
+    image: stockImages.serviceSeo,
     hash: "seo",
   },
   {
@@ -23,25 +23,25 @@ const services = [
   {
     title: "Website Optimisation",
     description: "Turn visitors into customers. We improve your existing site — speed, layout, and copy — so more people call, book, and buy.",
-    image: "https://creativedleading.co.uk/wp-content/uploads/2025/04/web-design.jpg",
+    image: stockImages.serviceWebsiteOptimisation,
     hash: "web-design",
   },
   {
     title: "Custom Website Design",
     description: "A website built to convert — fast, mobile-ready, and designed to generate real enquiries for your business.",
-    image: "https://creativedleading.co.uk/wp-content/uploads/2025/04/web-design-photo.jpg",
+    image: stockImages.serviceCustomWebDesign,
     hash: "web-design",
   },
   {
     title: "E-commerce Website Development",
     description: "Online stores built to sell. Every page designed to reduce drop-off and increase orders.",
-    image: "https://creativedleading.co.uk/wp-content/uploads/2025/04/E-commerce-website.jpg",
+    image: stockImages.serviceEcommerce,
     hash: "ecommerce",
   },
   {
     title: "Website Management",
     description: "We handle updates, security, and performance so your site stays fast and never loses a customer.",
-    image: "https://creativedleading.co.uk/wp-content/uploads/2025/04/wordpress-management.jpg",
+    image: stockImages.serviceWebsiteManagement,
     hash: "management",
   },
   {
@@ -74,6 +74,7 @@ export default function ServicesSection() {
                 <img
                   src={service.image}
                   alt={service.title}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                 />
               </div>

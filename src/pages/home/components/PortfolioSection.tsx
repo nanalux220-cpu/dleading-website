@@ -1,27 +1,28 @@
 import { Link } from "react-router-dom";
+import { stockImages } from "@/config/media";
 
 const projects = [
   {
     title: "All Believers Chapel",
-    image: "https://image.thum.io/get/width/800/crop/900/https://church-allbelievers.vercel.app/",
+    image: stockImages.portfolioChapel,
     category: "Web Design",
     url: "https://church-allbelievers.vercel.app/",
   },
   {
     title: "Photography Website",
-    image: "https://creativedleading.co.uk/wp-content/uploads/2025/04/photography-website.jpg",
+    image: stockImages.portfolioPhotography,
     category: "Photography",
     url: null,
   },
   {
     title: "Cleaning Website",
-    image: "https://creativedleading.co.uk/wp-content/uploads/2025/04/cleaning-website.jpg",
+    image: stockImages.portfolioCleaning,
     category: "E-commerce",
     url: null,
   },
   {
     title: "E-Commerce Platform",
-    image: "https://creativedleading.co.uk/wp-content/uploads/2025/04/E-commerce-website.jpg",
+    image: stockImages.portfolioEcommerceShowcase,
     category: "E-commerce",
     url: null,
   },
@@ -52,6 +53,7 @@ export default function PortfolioSection() {
                 <img
                   src={project.image}
                   alt={project.title}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                 />
               </div>

@@ -1,9 +1,11 @@
+import { stockImages } from "@/config/media";
+
 export const portfolioItems = [
   {
     id: 1,
     title: "All Believers Chapel",
     category: "Web Design",
-    image: "https://image.thum.io/get/width/800/crop/900/https://church-allbelievers.vercel.app/",
+    image: stockImages.portfolioChapel,
     description: "A warm, welcoming church website for All Believers Chapel in Leeds — featuring ministries, events, leadership profiles, donation integration, and a live service schedule.",
     url: "https://church-allbelievers.vercel.app/",
   },
