@@ -5,7 +5,7 @@ import http from "node:http";
 import { createHmac } from "node:crypto";
 
 const log = { claude: [], graph: [], n8n: [] };
-let graphMode = "ok", claudeMode = "ok";
+let graphMode = "ok", claudeMode = "ok", wabaSubscribed = false;
 const listen = (srv, port) => new Promise((r) => srv.listen(port, r));
 const readBody = async (req) => { let b = ""; for await (const c of req) b += c; return b; };
 const send = (res, obj, status = 200) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
@@ -38,7 +38,11 @@ const upstash = http.createServer(async (req, res) => {
 // ---- fake Meta Graph ----
 let wamidN = 0;
 const graph = http.createServer(async (req, res) => {
-  if (req.method === "GET") return req.headers.authorization === "Bearer test-wa-token" ? send(res, { display_phone_number: "+44 7427 259935", verified_name: "Dleading" }) : send(res, { error: { code: 190, message: "Invalid OAuth access token" } }, 401);
+  if (req.url.includes("debug_token")) return send(res, { data: { granular_scopes: [{ scope: "whatsapp_business_management", target_ids: ["999000"] }] } });
+  if (req.url.includes("/999000/phone_numbers")) return send(res, { data: [{ id: "1385944931264059", display_phone_number: "+44 7427 259935" }] });
+  if (req.url.includes("/phone_numbers")) return send(res, { error: { code: 100, message: "Unsupported get request" } }, 400);
+  if (req.url.includes("/999000/subscribed_apps")) { if (req.method === "POST") { wabaSubscribed = true; return send(res, { success: true }); } return send(res, { data: wabaSubscribed ? [{ whatsapp_business_api_data: { name: "Dleadind Creative" } }] : [] }); }
+    if (req.method === "GET") return req.headers.authorization === "Bearer test-wa-token" ? send(res, { display_phone_number: "+44 7427 259935", verified_name: "Dleading" }) : send(res, { error: { code: 190, message: "Invalid OAuth access token" } }, 401);
   const body = JSON.parse(await readBody(req));
   log.graph.push({ url: req.url, auth: req.headers.authorization, body });
   if (body.status === "read") return send(res, { success: true });
@@ -115,6 +119,7 @@ check("setup check: shows which settings exist", r.status === 200 && diag.settin
 r = await wa.GET(new Request("https://x/api/whatsapp?live=1"));
 const live = (await r.json()).live_checks;
 check("live check: database read/write + token accepted by Meta", live?.database?.startsWith("OK") && live?.whatsapp_token?.startsWith("OK"), live);
+check("live check: missing WABA subscription detected and fixed", live?.waba_subscription?.startsWith("FIXED") && wabaSubscribed, live);
 check("live check: no secret values in output", !/test-wa-token|kv-token|test-app-secret/.test(JSON.stringify(live)), live);
 check("setup check: never reveals secret values", !/test-verify-token|test-app-secret|test-wa-token|kv-token|test-key/.test(diagText), diagText);
 const vt = process.env.WHATSAPP_VERIFY_TOKEN; delete process.env.WHATSAPP_VERIFY_TOKEN;
