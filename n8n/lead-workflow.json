@@ -1,0 +1,240 @@
+{
+  "name": "Dleading \u2013 Website Chat Lead",
+  "nodes": [
+    {
+      "id": "5a3aa16d-27bf-4d18-97ba-009246ff14ab",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "607321dd-7f84-46d5-a2d0-7de7b8a6c654",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dleading-lead",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "065bbe55-8495-45f1-b75b-59e61862388f",
+      "name": "Format",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4bae4a13-36d0-4f5f-a7b0-4ab25858a3cc",
+              "name": "lead_id",
+              "value": "={{ $json.body.lead_id || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "1be97c46-e2d8-4632-af73-365a09865ba4",
+              "name": "action",
+              "value": "={{ $json.body.action || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "5c51196c-dffb-44b1-8922-57926b92724b",
+              "name": "version",
+              "value": "={{ String($json.body.version) || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "5d870aa8-8ba3-487b-9069-65333cfc3b7d",
+              "name": "timestamp",
+              "value": "={{ $json.body.timestamp || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "f895450c-01e1-4b3a-b0ce-92540bfe2088",
+              "name": "name",
+              "value": "={{ $json.body.lead.name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "44877759-29d1-413e-871f-3a5e8e2c2b28",
+              "name": "email",
+              "value": "={{ $json.body.lead.email || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "fefce3b2-4a70-41b4-89d1-89e3a6e7f2c3",
+              "name": "phone",
+              "value": "={{ $json.body.lead.phone || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "65a3e56d-24b3-4b4d-bf2f-cca7122b14e5",
+              "name": "business_name",
+              "value": "={{ $json.body.lead.business_name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "1a21c89d-7482-4315-b11f-724dd42800b1",
+              "name": "needs",
+              "value": "={{ $json.body.lead.needs || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "5055c827-309a-493f-9358-6516f8fa0827",
+              "name": "budget",
+              "value": "={{ $json.body.lead.budget || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "d613d51b-d5d3-4018-96e1-291abdfb4322",
+              "name": "preferred_contact",
+              "value": "={{ $json.body.lead.preferred_contact || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "d78696c8-0013-45af-8af7-b35f2a8874f2",
+              "name": "page",
+              "value": "={{ $json.body.page || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "77402200-1fa1-45e2-8b80-d44be729ed8d",
+              "name": "conversation_id",
+              "value": "={{ $json.body.conversation_id || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "43ed6613-11d1-4b63-8a8f-2e5d95e47d1a",
+              "name": "transcript",
+              "value": "={{ $json.body.transcript || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8bd044ab-7a11-4407-a9ed-0f3a7ac32e38",
+      "name": "Save to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "lead_id"
+          ],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "625e96eb-0915-4cf5-837c-815055be8cae",
+      "name": "Email the team",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "sendTo": "info@creativedleading.co.uk",
+        "subject": "={{ $('Format').item.json.action === 'update' ? 'UPDATED lead' : 'New website lead' }}: {{ $('Format').item.json.name }}{{ $('Format').item.json.business_name ? ' (' + $('Format').item.json.business_name + ')' : '' }}",
+        "emailType": "text",
+        "message": "=Lead from the website AI assistant ({{ $('Format').item.json.action === 'update' ? 'UPDATE #' + $('Format').item.json.version + ' \u2014 same person, new/corrected details' : 'new' }})\nLead ID: {{ $('Format').item.json.lead_id }}\n\nName: {{ $('Format').item.json.name }}\nEmail: {{ $('Format').item.json.email }}\nPhone/WhatsApp: {{ $('Format').item.json.phone }}\nBusiness: {{ $('Format').item.json.business_name }}\nNeeds: {{ $('Format').item.json.needs }}\nBudget: {{ $('Format').item.json.budget }}\nPreferred contact: {{ $('Format').item.json.preferred_contact }}\nPage: {{ $('Format').item.json.page }}\nTime: {{ $('Format').item.json.timestamp }}\n\n--- Conversation ---\n{{ $('Format').item.json.transcript }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "9d562737-3c73-4413-a89a-928d99dcc584",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\": true}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Email the team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email the team": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
