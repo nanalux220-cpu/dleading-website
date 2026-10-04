@@ -1,4 +1,71 @@
+import { createHash } from "node:crypto";
 import { searchKnowledge, KNOWLEDGE_INLINE } from "./knowledge.js";
+
+/*
+ * ACTION TRACKING / IDEMPOTENCY
+ * The server is stateless, so the conversation's action state travels with each
+ * request: the server returns it, the widget stores it, and sends it back next time.
+ *
+ *   state.lead     = null | { id, version, fingerprint, sentAt, data }
+ *   state.handoffs = [{ id, reason, sentAt }]   (max 3)
+ *
+ * Rules enforced in code (not just asked of the AI):
+ *   - One lead per conversation. Later create_lead calls MERGE new details into it and
+ *     send an "update" with the SAME lead id (n8n updates the same Sheet row).
+ *   - An update with nothing new is skipped (no duplicate notification).
+ *   - A handoff for the same issue is not re-sent; different issues allowed, max 3.
+ * The state is client-held, so a determined user could reset it; worst case is an extra
+ * notification, which the rate limit and n8n's update-by-id keep bounded.
+ */
+const LEAD_FIELDS = ["name", "email", "phone", "business_name", "needs", "budget", "preferred_contact"];
+const MAX_HANDOFFS = 3;
+const idOk = (v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(v);
+
+export function sanitizeState(raw) {
+  const out = { lead: null, handoffs: [] };
+  if (!raw || typeof raw !== "object") return out;
+  const l = raw.lead;
+  if (l && typeof l === "object" && idOk(l.id)) {
+    const data = {};
+    for (const f of LEAD_FIELDS) data[f] = clean(l.data?.[f], f === "needs" ? 1000 : 254);
+    out.lead = {
+      id: l.id,
+      version: Math.min(Math.max(parseInt(l.version, 10) || 1, 1), 100),
+      fingerprint: typeof l.fingerprint === "string" ? l.fingerprint.slice(0, 64) : "",
+      sentAt: clean(l.sentAt, 40),
+      data,
+    };
+  }
+  if (Array.isArray(raw.handoffs)) {
+    out.handoffs = raw.handoffs.slice(0, MAX_HANDOFFS)
+      .filter((h) => h && idOk(h.id))
+      .map((h) => ({ id: h.id, reason: clean(h.reason, 500), sentAt: clean(h.sentAt, 40) }));
+  }
+  return out;
+}
+
+/** Plain-English summary of completed actions, given to the AI each turn. */
+export function stateNotes(state) {
+  const notes = [];
+  if (state.lead) {
+    const d = state.lead.data;
+    const known = LEAD_FIELDS.filter((f) => d[f]).map((f) => `${f}: ${d[f]}`).join("; ");
+    notes.push(`A lead has ALREADY been sent to the team in this chat (${known}). Do NOT collect everything again. If the visitor gives NEW or CORRECTED details, call create_lead with just those fields: it updates the same lead, it does not create a new one. Otherwise don't call create_lead.`);
+  }
+  if (state.handoffs.length) {
+    notes.push(`The team has ALREADY been asked to follow up on: ${state.handoffs.map((h) => `"${h.reason}"`).join(", ")}. Don't call request_human again for the same issue; only for a clearly different issue.`);
+  }
+  return notes;
+}
+
+const words = (s) => new Set(String(s).toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length > 3));
+function sameIssue(a, b) {
+  const A = words(a), B = words(b);
+  if (!A.size || !B.size) return a.trim().toLowerCase() === b.trim().toLowerCase();
+  let inter = 0; for (const w of A) if (B.has(w)) inter++;
+  return inter / Math.min(A.size, B.size) >= 0.6;
+}
+const fingerprint = (data) => createHash("sha256").update(JSON.stringify(LEAD_FIELDS.map((f) => (data[f] || "").toLowerCase()))).digest("hex").slice(0, 32);
 
 const BUSINESS_INFO = {
   company: "Dleading Creative Designs Ltd",
@@ -24,7 +91,7 @@ export const TOOL_DEFS = [
   },
   {
     name: "create_lead",
-    description: "Send a potential customer's details to the Dleading team. Only call once you have name, what they need, and an email or phone, and the visitor has agreed to share them.",
+    description: "Send a potential customer's details to the Dleading team. First time: needs name, what they need, and an email or phone, with the visitor's agreement. If a lead was already sent in this chat, calling again with new/corrected fields UPDATES that same lead (only pass the changed fields).",
     input_schema: {
       type: "object",
       properties: {
@@ -36,7 +103,7 @@ export const TOOL_DEFS = [
         budget: { type: "string", description: "Only if the visitor gave one" },
         preferred_contact: { type: "string", enum: ["email", "phone", "whatsapp"] },
       },
-      required: ["name", "needs"],
+      required: [],
     },
   },
   {
@@ -104,7 +171,7 @@ async function sendToN8n(urlEnv, payload) {
 const FAIL_MSG = "Sending failed. Do NOT say the team was notified. Apologise, and ask the visitor to contact Dleading directly: WhatsApp/phone +44 742 725 9935 or info@creativedleading.co.uk.";
 
 /**
- * Executes one tool call. `ctx` = { conversationId, transcript, page, sent:Set }.
+ * Executes one tool call. `ctx` = { conversationId, transcript, page, state } (state is mutated).
  * Returns { result (object for the model), action? (for the client), ended? }.
  */
 export async function runTool(name, input, ctx) {
@@ -118,50 +185,80 @@ export async function runTool(name, input, ctx) {
       return { result: BUSINESS_INFO };
 
     case "create_lead": {
-      const { email, phone, errors } = contactFields(input);
-      const nameV = clean(input.name, 100);
-      const needs = clean(input.needs, 1000);
-      if (!nameV) errors.push("need the visitor's name");
-      if (!needs) errors.push("need a short description of what they need");
+      const st = ctx.state;
+      const incoming = {};
+      for (const f of LEAD_FIELDS) incoming[f] = clean(input[f], f === "needs" ? 1000 : f === "name" ? 100 : 254);
+      if (!["email", "phone", "whatsapp"].includes(incoming.preferred_contact)) incoming.preferred_contact = "";
+      // Merge: new non-empty values override earlier ones.
+      const prev = st.lead?.data || {};
+      const data = {};
+      for (const f of LEAD_FIELDS) data[f] = incoming[f] || prev[f] || "";
+
+      const { errors } = contactFields(data);
+      if (!data.name) errors.push("need the visitor's name");
+      if (!data.needs) errors.push("need a short description of what they need");
       if (errors.length) return { result: { ok: false, error: errors.join("; ") } };
-      if (ctx.sent.has("lead")) return { result: { ok: true, note: "Lead already sent in this request." } };
-      ctx.sent.add("lead");
+
+      const fp = fingerprint(data);
+      if (st.lead && st.lead.fingerprint === fp) {
+        return { result: { ok: true, note: "Nothing new: the team already has exactly these details. Don't mention re-sending." } };
+      }
+      const isUpdate = !!st.lead;
+      const lead = {
+        id: st.lead?.id || `lead_${ctx.conversationId}`.slice(0, 100),
+        version: isUpdate ? st.lead.version + 1 : 1,
+        fingerprint: fp,
+        sentAt: new Date().toISOString(),
+        data,
+      };
       const r = await sendToN8n("N8N_LEAD_WEBHOOK_URL", {
         type: "lead",
-        timestamp: new Date().toISOString(),
+        action: isUpdate ? "update" : "create",
+        lead_id: lead.id,
+        version: lead.version,
+        timestamp: lead.sentAt,
         conversation_id: ctx.conversationId,
         page: ctx.page,
-        lead: {
-          name: nameV, email, phone,
-          business_name: clean(input.business_name, 150),
-          needs,
-          budget: clean(input.budget, 100),
-          preferred_contact: ["email", "phone", "whatsapp"].includes(input.preferred_contact) ? input.preferred_contact : "",
-        },
+        lead: data,
         transcript: ctx.transcript,
       });
-      return { result: r.ok ? { ok: true } : { ok: false, error: FAIL_MSG }, action: { type: "lead", ok: r.ok } };
+      if (r.ok) st.lead = lead; // only record actions that really happened
+      return {
+        result: r.ok ? { ok: true, updated_existing_lead: isUpdate } : { ok: false, error: FAIL_MSG },
+        action: { type: isUpdate ? "lead_update" : "lead", ok: r.ok },
+      };
     }
 
     case "request_human": {
-      const { email, phone, errors } = contactFields(input);
+      const st = ctx.state;
       const reason = clean(input.reason, 500);
+      // Fall back to contact details already given in a lead.
+      const ld = st.lead?.data || {};
+      const contact = { email: input.email || ld.email, phone: input.phone || ld.phone };
+      const { email, phone, errors } = contactFields(contact);
       if (!reason) errors.push("need a reason");
       if (errors.length) return { result: { ok: false, error: errors.join("; ") + ". If the visitor won't share contact details, give them Dleading's contact details instead." } };
-      if (ctx.sent.has("handoff")) return { result: { ok: true, note: "Already handed over in this request." } };
-      ctx.sent.add("handoff");
+
+      const dup = st.handoffs.find((h) => sameIssue(h.reason, reason));
+      if (dup) return { result: { ok: true, already_requested: true, note: "The team was already asked about this issue in this chat. Reassure the visitor; don't say it was sent again." } };
+      if (st.handoffs.length >= MAX_HANDOFFS) return { result: { ok: false, error: "Handoff limit reached for this chat. Give the visitor Dleading's contact details instead." } };
+
+      const handoff = { id: `${ctx.conversationId}-h${st.handoffs.length + 1}`.slice(0, 100), reason, sentAt: new Date().toISOString() };
       const r = await sendToN8n("N8N_HANDOFF_WEBHOOK_URL", {
         type: "handoff",
-        timestamp: new Date().toISOString(),
+        handoff_id: handoff.id,
+        timestamp: handoff.sentAt,
         conversation_id: ctx.conversationId,
+        lead_id: st.lead?.id || "",
         page: ctx.page,
         reason,
         customer: {
-          name: clean(input.name, 100), email, phone,
-          preferred_contact: ["email", "phone", "whatsapp"].includes(input.preferred_contact) ? input.preferred_contact : "",
+          name: clean(input.name, 100) || ld.name || "", email, phone,
+          preferred_contact: ["email", "phone", "whatsapp"].includes(input.preferred_contact) ? input.preferred_contact : ld.preferred_contact || "",
         },
         transcript: ctx.transcript,
       });
+      if (r.ok) st.handoffs.push(handoff);
       return { result: r.ok ? { ok: true } : { ok: false, error: FAIL_MSG }, action: { type: "handoff", ok: r.ok } };
     }
 

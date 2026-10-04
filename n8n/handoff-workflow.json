@@ -32,6 +32,18 @@
         "assignments": {
           "assignments": [
             {
+              "id": "52986d28-5b46-4295-8970-4f0aed597f29",
+              "name": "handoff_id",
+              "value": "={{ $json.body.handoff_id || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "3f059e65-250d-48d7-953f-68fdba7ee306",
+              "name": "lead_id",
+              "value": "={{ $json.body.lead_id || '' }}",
+              "type": "string"
+            },
+            {
               "id": "e6c37385-c66d-49e0-9d24-0892e39407f0",
               "name": "timestamp",
               "value": "={{ $json.body.timestamp || '' }}",
@@ -100,7 +112,7 @@
         0
       ],
       "parameters": {
-        "operation": "append",
+        "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
           "mode": "url",
@@ -114,7 +126,9 @@
         "columns": {
           "mappingMode": "autoMapInputData",
           "value": {},
-          "matchingColumns": [],
+          "matchingColumns": [
+            "handoff_id"
+          ],
           "schema": []
         },
         "options": {}

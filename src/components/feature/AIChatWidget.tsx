@@ -8,11 +8,12 @@ import { useLocation } from "react-router-dom";
 
 type Role = "user" | "assistant";
 interface Msg { role: Role; content: string }
+/** Completed actions (lead sent, handoffs) — owned by the server, stored here, sent back each request. */
+type ActionState = Record<string, unknown> | null;
 interface ChatState {
   id: string;
   messages: Msg[];
-  leadSent: boolean;
-  handoffSent: boolean;
+  actions: ActionState;
   ended: boolean;
   updatedAt: number;
 }
@@ -30,7 +31,7 @@ const newId = () =>
     ? crypto.randomUUID()
     : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`).replace(/[^A-Za-z0-9_-]/g, "");
 
-const fresh = (): ChatState => ({ id: newId(), messages: [], leadSent: false, handoffSent: false, ended: false, updatedAt: Date.now() });
+const fresh = (): ChatState => ({ id: newId(), messages: [], actions: null, ended: false, updatedAt: Date.now() });
 
 function load(): ChatState {
   try {
@@ -41,7 +42,7 @@ function load(): ChatState {
     // Drop a dangling unanswered user message (e.g. page refreshed mid-request) so history stays valid.
     const msgs = s.messages.filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string");
     if (msgs.length && msgs[msgs.length - 1].role === "user") msgs.pop();
-    return { ...s, messages: msgs };
+    return { ...s, messages: msgs, actions: s.actions && typeof s.actions === "object" ? s.actions : null };
   } catch {
     return fresh();
   }
@@ -147,12 +148,17 @@ export default function AIChatWidget() {
           conversationId: chat.id,
           messages: history.slice(start),
           page: location.pathname,
-          state: { leadSent: chat.leadSent, handoffSent: chat.handoffSent },
+          state: chat.actions ?? undefined,
         }),
         signal: controller.signal,
       });
-      let data: { reply?: string; ended?: boolean; actions?: { type: string; ok: boolean }[] } = {};
+      let data: { reply?: string; ended?: boolean; state?: ActionState } = {};
       try { data = await res.json(); } catch { /* non-JSON error page */ }
+      // Record completed actions even if the reply itself failed (e.g. lead sent, then AI error).
+      if (data.state && typeof data.state === "object") {
+        const st = data.state;
+        setChat((c) => (c.id !== id ? c : { ...c, actions: st }));
+      }
 
       if (!res.ok && !data.reply) throw new Error(`HTTP ${res.status}`);
       if (!res.ok && data.reply) {
@@ -160,12 +166,9 @@ export default function AIChatWidget() {
         throw Object.assign(new Error("server"), { friendly: data.reply });
       }
 
-      const acts = data.actions || [];
       setChat((c) => c.id !== id ? c : ({
         ...c,
         messages: [...history, { role: "assistant", content: data.reply || "" }],
-        leadSent: c.leadSent || acts.some((a) => a.type === "lead" && a.ok),
-        handoffSent: c.handoffSent || acts.some((a) => a.type === "handoff" && a.ok),
         ended: c.ended || !!data.ended,
         updatedAt: Date.now(),
       }));

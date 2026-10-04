@@ -1,8 +1,8 @@
 /**
  * POST /api/chat — Dleading website AI assistant.
  *
- * Request:  { conversationId, messages: [{ role: "user"|"assistant", content }], page?, state?: { leadSent?, handoffSent? } }
- * Response: { reply: string, ended?: boolean, actions?: [{ type: "lead"|"handoff", ok: boolean }] }
+ * Request:  { conversationId, messages: [{ role: "user"|"assistant", content }], page?, state? }  (state = completed actions, see _lib/tools.js)
+ * Response: { reply, ended, actions: [{ type: "lead"|"lead_update"|"handoff", ok }], state }
  *
  * Server-side env vars (set in Vercel, never in the frontend):
  *   ANTHROPIC_API_KEY        required
@@ -14,7 +14,7 @@
  *   ABUSE_MAX_WARNINGS       optional, default 1
  */
 import { buildSystem } from "./_lib/prompt.js";
-import { TOOL_DEFS, runTool } from "./_lib/tools.js";
+import { TOOL_DEFS, runTool, sanitizeState, stateNotes } from "./_lib/tools.js";
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
 const API_BASE = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
@@ -81,9 +81,7 @@ function validate(body) {
 
 async function callClaude(messages, state) {
   const system = buildSystem();
-  const notes = [];
-  if (state.leadSent) notes.push("This visitor's lead details were ALREADY sent to the team earlier in this chat. Don't call create_lead again unless they give new or corrected details.");
-  if (state.handoffSent) notes.push("This chat was ALREADY handed over to the team earlier. Don't call request_human again unless there's a new, different issue.");
+  const notes = stateNotes(state);
   if (notes.length) system.push({ type: "text", text: "# Conversation state\n" + notes.join("\n") });
   const body = JSON.stringify({ model: MODEL, max_tokens: 700, system, tools: TOOL_DEFS, messages });
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -139,12 +137,9 @@ export async function POST(request) {
     conversationId: body.conversationId,
     page: body.page || "",
     transcript: messages.map((m) => `${m.role === "user" ? "Visitor" : "Assistant"}: ${m.content}`).join("\n"),
-    sent: new Set(),
+    state: sanitizeState(body.state),
   };
-  const state = {
-    leadSent: body.state?.leadSent === true,
-    handoffSent: body.state?.handoffSent === true,
-  };
+  const state = ctx.state;
   const actions = [];
   let ended = false;
 
@@ -157,7 +152,7 @@ export async function POST(request) {
 
       if (data.stop_reason !== "tool_use" || !toolUses.length || round === MAX_TOOL_ROUNDS) {
         if (!text) throw new Error("empty_reply");
-        return json(200, { reply: text, ended, actions });
+        return json(200, { reply: text, ended, actions, state });
       }
 
       messages.push({ role: "assistant", content });
@@ -172,12 +167,12 @@ export async function POST(request) {
 
       if (ended) {
         // Use the closing line the model already wrote, or a neutral default.
-        return json(200, { reply: text || "I'm going to end our chat here. If you need help later, you can contact Dleading on +44 742 725 9935.", ended, actions });
+        return json(200, { reply: text || "I'm going to end our chat here. If you need help later, you can contact Dleading on +44 742 725 9935.", ended, actions, state });
       }
     }
   } catch (e) {
     console.error(`[chat] failed: ${e.message}`);
-    return json(502, { error: "ai_error", reply: FALLBACK, actions });
+    return json(502, { error: "ai_error", reply: FALLBACK, actions, state });
   }
   return json(502, { error: "ai_error", reply: FALLBACK, actions });
 }

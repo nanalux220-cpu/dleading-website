@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "type-check": "tsc --noEmit --project tsconfig.app.json",
-    "kb": "node scripts/build-knowledge.mjs"
+    "kb": "node scripts/build-knowledge.mjs",
+    "test:api": "node tests/api.test.mjs"
   },
   "dependencies": {
     "i18next": "^25.3.2",

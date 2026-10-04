@@ -6,6 +6,8 @@ URLs are in Vercel, the chat still works — it just tells visitors to contact
 Dleading directly instead of claiming the team was notified.
 
 Both workflows: **Webhook (secret-header protected) → Format → Save to Google Sheet → Email the team → Respond OK**.
+**No duplicates:** each conversation has one `lead_id`. If the visitor adds or corrects details later, the website sends `action: "update"` with the same `lead_id`, and the Sheet row is updated in place (the email subject says UPDATED). Each distinct handoff gets its own `handoff_id`; repeats of the same issue aren't sent.
+
 If any step fails, n8n returns an error, and the AI honestly tells the visitor it couldn't pass the details on.
 
 ## One-time setup (≈15 minutes)
@@ -15,8 +17,8 @@ Create a long random string (e.g. from a password manager, 32+ characters). You'
 
 ### 2. Make a Google Sheet
 Create a sheet with two tabs named exactly `Leads` and `Handoffs`.
-- `Leads` row 1 headers: `timestamp, name, email, phone, business_name, needs, budget, preferred_contact, page, conversation_id, transcript`
-- `Handoffs` row 1 headers: `timestamp, reason, name, email, phone, preferred_contact, page, conversation_id, transcript`
+- `Leads` row 1 headers: `lead_id, action, version, timestamp, name, email, phone, business_name, needs, budget, preferred_contact, page, conversation_id, transcript`
+- `Handoffs` row 1 headers: `handoff_id, lead_id, timestamp, reason, name, email, phone, preferred_contact, page, conversation_id, transcript`
 
 ### 3. Import each workflow (repeat for `lead-workflow.json` and `handoff-workflow.json`)
 1. n8n → **Create workflow** → `…` menu → **Import from file** → choose the JSON.
@@ -49,13 +51,13 @@ Then redeploy (Deployments → … → Redeploy) so the function picks them up.
 
 Lead:
 ```json
-{ "type": "lead", "timestamp": "ISO date", "conversation_id": "…", "page": "/pricing",
+{ "type": "lead", "action": "create|update", "lead_id": "lead_<conversation>", "version": 1, "timestamp": "ISO date", "conversation_id": "…", "page": "/pricing",
   "lead": { "name": "", "email": "", "phone": "", "business_name": "", "needs": "", "budget": "", "preferred_contact": "email|phone|whatsapp|" },
   "transcript": "Visitor: …\nAssistant: …" }
 ```
 Handoff:
 ```json
-{ "type": "handoff", "timestamp": "…", "conversation_id": "…", "page": "…", "reason": "…",
+{ "type": "handoff", "handoff_id": "<conversation>-h1", "lead_id": "", "timestamp": "…", "conversation_id": "…", "page": "…", "reason": "…",
   "customer": { "name": "", "email": "", "phone": "", "preferred_contact": "" },
   "transcript": "…" }
 ```
