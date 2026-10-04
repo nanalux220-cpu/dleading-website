@@ -37,6 +37,7 @@ const upstash = http.createServer(async (req, res) => {
 // ---- fake Meta Graph ----
 let wamidN = 0;
 const graph = http.createServer(async (req, res) => {
+  if (req.method === "GET") return req.headers.authorization === "Bearer test-wa-token" ? send(res, { display_phone_number: "+44 7427 259935", verified_name: "Dleading" }) : send(res, { error: { code: 190, message: "Invalid OAuth access token" } }, 401);
   const body = JSON.parse(await readBody(req));
   log.graph.push({ url: req.url, auth: req.headers.authorization, body });
   if (body.status === "read") return send(res, { success: true });
@@ -110,6 +111,10 @@ process.env.WHATSAPP_VERIFY_TOKEN = "test-verify-token";
 r = await wa.GET(new Request("https://x/api/whatsapp"));
 const diag = await r.json(); const diagText = JSON.stringify(diag);
 check("setup check: shows which settings exist", r.status === 200 && diag.settings.WHATSAPP_VERIFY_TOKEN === "set (17 characters)" && diag.settings.DATABASE_UPSTASH === "connected", diag);
+r = await wa.GET(new Request("https://x/api/whatsapp?live=1"));
+const live = (await r.json()).live_checks;
+check("live check: database read/write + token accepted by Meta", live?.database?.startsWith("OK") && live?.whatsapp_token?.startsWith("OK"), live);
+check("live check: no secret values in output", !/test-wa-token|kv-token|test-app-secret/.test(JSON.stringify(live)), live);
 check("setup check: never reveals secret values", !/test-verify-token|test-app-secret|test-wa-token|kv-token|test-key/.test(diagText), diagText);
 const vt = process.env.WHATSAPP_VERIFY_TOKEN; delete process.env.WHATSAPP_VERIFY_TOKEN;
 r = await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=&hub.challenge=1"));
