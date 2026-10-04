@@ -218,8 +218,8 @@ export default function AIChatWidget() {
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Close chat" : "Chat with Dleading's AI assistant"}
         aria-expanded={open}
-        className={`fixed bottom-[76px] md:bottom-6 right-4 md:right-6 z-[9999] w-14 h-14 rounded-full flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 ${
-          open ? "max-md:hidden" : ""
+        className={`fixed bottom-[144px] md:bottom-[92px] right-6 z-[9999] w-14 h-14 rounded-full flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 ${
+          open ? "hidden" : ""
         }`}
         style={{ background: "linear-gradient(135deg, #F69D01 0%, #F65901 100%)", boxShadow: "0 6px 28px rgba(246,89,1,0.45)" }}
       >
@@ -236,7 +236,7 @@ export default function AIChatWidget() {
           aria-label="Dleading AI assistant"
           className="fixed z-[10000] bg-white flex flex-col overflow-hidden
             inset-0 h-[100dvh]
-            md:inset-auto md:bottom-24 md:right-6 md:w-[380px] md:h-[min(620px,calc(100vh-120px))] md:rounded-2xl"
+            md:inset-auto md:bottom-[92px] md:right-6 md:w-[380px] md:h-[min(620px,calc(100vh-130px))] md:rounded-2xl"
           style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.22)" }}
         >
           {/* Header */}

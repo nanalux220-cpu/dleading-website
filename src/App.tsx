@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BrowserRouter, Link, useLocation } from "react-router-dom";
 import { AppRoutes } from "./router";
 
@@ -14,6 +14,140 @@ import i18n from "./i18n";
 import LeadPopup from "./components/feature/LeadPopup";
 import CookieBanner from "./components/feature/CookieBanner";
 import AIChatWidget from "./components/feature/AIChatWidget";
+
+function WhatsAppButton() {
+  const [visible, setVisible] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const autoHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Show button only after scrolling 320px down
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 320) {
+        setVisible(true);
+      } else {
+        setVisible(false);
+        setShowTooltip(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Auto-show tooltip briefly once the button becomes visible
+  useEffect(() => {
+    if (visible) {
+      const showT = setTimeout(() => {
+        setShowTooltip(true);
+        if (autoHideRef.current) clearTimeout(autoHideRef.current);
+        autoHideRef.current = setTimeout(() => setShowTooltip(false), 4000);
+      }, 700);
+      return () => clearTimeout(showT);
+    }
+  }, [visible]);
+
+  const handleMouseEnter = () => {
+    if (autoHideRef.current) clearTimeout(autoHideRef.current);
+    setShowTooltip(true);
+  };
+
+  const handleMouseLeave = () => {
+    autoHideRef.current = setTimeout(() => setShowTooltip(false), 300);
+  };
+
+  return (
+    <div
+      className={`fixed bottom-[76px] md:bottom-6 right-6 z-[9999] flex flex-col items-end gap-3 transition-all duration-500 pointer-events-none ${
+        visible
+          ? "opacity-100 translate-y-0"
+          : "opacity-0 translate-y-12"
+      }`}
+    >
+      {/* Tooltip card */}
+      <div
+        className={`transition-all duration-300 ${
+          showTooltip
+            ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
+            : "opacity-0 translate-y-3 scale-95 pointer-events-none"
+        }`}
+      >
+        <div
+          className="relative bg-white rounded-2xl px-5 py-4 flex flex-col gap-2"
+          style={{ boxShadow: "0 10px 40px rgba(0,0,0,0.16)", minWidth: "228px" }}
+        >
+          {/* Arrow pointing down to the FAB */}
+          <div
+            className="absolute bottom-[-8px] right-7 w-4 h-4 bg-white rotate-45"
+            style={{ boxShadow: "3px 3px 8px rgba(0,0,0,0.07)" }}
+          />
+
+          {/* Header */}
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: "#25D366" }}>
+              <i className="ri-whatsapp-line text-white text-base"></i>
+            </div>
+            <div>
+              <div className="text-gray-900 text-xs font-bold leading-tight">Dleading Creative Designs</div>
+              <div className="flex items-center gap-1 mt-0.5">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#25D366" }}></div>
+                <span className="text-gray-400 text-[10px]">Online · Replies in minutes</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Message bubble */}
+          <div className="bg-gray-50 rounded-xl rounded-tl-sm px-3 py-2.5">
+            <p className="text-gray-700 text-xs leading-relaxed">
+              Hi there! 👋 Got a question about our services or pricing? We&apos;d love to help.
+            </p>
+          </div>
+
+          {/* CTA */}
+          <a
+            href="https://wa.link/9m4r50"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-white cursor-pointer whitespace-nowrap transition-opacity hover:opacity-90 mt-0.5"
+            style={{ backgroundColor: "#25D366" }}
+          >
+            <i className="ri-whatsapp-line text-sm"></i>
+            Start a Conversation
+          </a>
+        </div>
+      </div>
+
+      {/* Floating action button */}
+      <a
+        href="https://wa.link/9m4r50"
+        target="_blank"
+        rel="noopener noreferrer"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        aria-label="Chat on WhatsApp"
+        className="relative w-14 h-14 rounded-full flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-110 active:scale-95 pointer-events-auto"
+        style={{
+          backgroundColor: "#25D366",
+          boxShadow: "0 6px 28px rgba(37,211,102,0.55)",
+        }}
+      >
+        {/* Slow pulse ring */}
+        <span
+          className="absolute inset-0 rounded-full animate-ping"
+          style={{
+            backgroundColor: "rgba(37,211,102,0.28)",
+            animationDuration: "2.2s",
+          }}
+        />
+        {/* Subtle inner highlight */}
+        <span
+          className="absolute inset-1 rounded-full"
+          style={{ backgroundColor: "rgba(255,255,255,0.12)" }}
+        />
+        <i className="ri-whatsapp-line text-white text-[30px] relative z-10"></i>
+      </a>
+    </div>
+  );
+}
 
 function BackToTop() {
   const [visible, setVisible] = useState(false);
@@ -149,6 +283,7 @@ function App() {
       <BrowserRouter basename={__BASE_PATH__}>
         <ScrollToTop />
         <AppRoutes />
+        <WhatsAppButton />
         <AIChatWidget />
         <BackToTop />
         <MobileBottomCTA />
