@@ -24,7 +24,7 @@ const MAX_BROADCAST = 100; // per request (keeps within the function time limit)
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
 function authorised(request) {
-  const expected = process.env.ADMIN_TOKEN || "";
+  const expected = String(process.env.ADMIN_TOKEN || "").trim();
   const given = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (expected.length < 24 || given.length !== expected.length) return false;
   return timingSafeEqual(Buffer.from(given), Buffer.from(expected));

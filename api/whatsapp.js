@@ -35,14 +35,36 @@ const json = (status, body) => new Response(JSON.stringify(body), { status, head
 const now = () => new Date().toISOString();
 
 // ---------- Meta verification ----------
+const envTrim = (k) => String(process.env[k] || "").trim();
+
 export function GET(request) {
   const p = new URL(request.url).searchParams;
-  const expected = process.env.WHATSAPP_VERIFY_TOKEN;
-  if (p.get("hub.mode") === "subscribe" && expected && p.get("hub.verify_token") === expected) {
-    return new Response(p.get("hub.challenge") || "", { status: 200, headers: { "content-type": "text/plain" } });
+  const mode = p.get("hub.mode");
+
+  // Plain visit (no hub.* params): safe setup check. Shows ONLY whether settings exist, never their values.
+  if (!mode && !p.has("hub.verify_token")) {
+    const vt = envTrim("WHATSAPP_VERIFY_TOKEN");
+    return json(200, {
+      endpoint: "ok",
+      callback_url: "https://creativedleading.co.uk/api/whatsapp",
+      settings: {
+        WHATSAPP_VERIFY_TOKEN: vt ? `set (${vt.length} characters)` : "MISSING",
+        WHATSAPP_APP_SECRET: envTrim("WHATSAPP_APP_SECRET") ? "set" : "MISSING",
+        WHATSAPP_ACCESS_TOKEN: envTrim("WHATSAPP_ACCESS_TOKEN") ? "set" : "MISSING",
+        WHATSAPP_PHONE_NUMBER_ID: envTrim("WHATSAPP_PHONE_NUMBER_ID") ? "set" : "MISSING",
+        DATABASE_UPSTASH: storeConfigured() ? "connected" : "MISSING",
+        ANTHROPIC_API_KEY: envTrim("ANTHROPIC_API_KEY") ? "set" : "MISSING",
+      },
+    });
   }
-  console.warn("[whatsapp] verification failed (token mismatch or WHATSAPP_VERIFY_TOKEN not set)");
-  return new Response("Forbidden", { status: 403 });
+
+  const expected = envTrim("WHATSAPP_VERIFY_TOKEN");
+  const given = String(p.get("hub.verify_token") || "").trim();
+  if (mode === "subscribe" && expected && given === expected) {
+    return new Response(p.get("hub.challenge") || "", { status: 200, headers: { "content-type": "text/plain", "cache-control": "no-store" } });
+  }
+  console.warn(`[whatsapp] verification failed: ${!expected ? "WHATSAPP_VERIFY_TOKEN not set in Vercel" : mode !== "subscribe" ? "hub.mode is not subscribe" : `token mismatch (received ${given.length} chars, expected ${expected.length})`}`);
+  return new Response("Forbidden", { status: 403, headers: { "cache-control": "no-store" } });
 }
 
 // ---------- incoming events ----------
@@ -67,7 +89,7 @@ export async function POST(request) {
       if (change.field !== "messages") continue;
       const v = change.value || {};
       // Only handle events for OUR number.
-      const ourId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+      const ourId = envTrim("WHATSAPP_PHONE_NUMBER_ID");
       if (ourId && v.metadata?.phone_number_id && v.metadata.phone_number_id !== ourId) continue;
 
       for (const s of v.statuses || []) {
