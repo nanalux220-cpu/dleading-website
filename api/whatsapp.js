@@ -92,6 +92,7 @@ async function findWabaIds() {
   const ids = new Set();
   const configured = envTrim("WHATSAPP_BUSINESS_ACCOUNT_ID");
   if (configured) ids.add(configured);
+  ids.add("1672795140622691"); // "Dleading Creative Design Ltd" WABA (owns +44 7427 259935)
   // Token debug tells us which WABAs this token can manage.
   const dbg = await graphGet(`debug_token?input_token=${encodeURIComponent(envTrim("WHATSAPP_ACCESS_TOKEN"))}`);
   for (const g of dbg.data?.data?.granular_scopes || []) {
@@ -151,6 +152,10 @@ async function liveChecks() {
       ? `OK: Meta accepted the token for ${d.display_phone_number || "?"} (${d.verified_name || "?"})`
       : `FAILED: Meta error ${d?.error?.code ?? res.status}: ${String(d?.error?.message || "").slice(0, 140)}`;
   } catch (e) { out.whatsapp_token = `FAILED: ${e.name}`; }
+  try {
+    const st = await graphGet(`${whatsappEnv("WHATSAPP_PHONE_NUMBER_ID")}?fields=status,platform_type,code_verification_status,name_status`);
+    out.phone_status = st.ok ? `status=${st.data.status || "?"}, platform=${st.data.platform_type || "?"}, verification=${st.data.code_verification_status || "?"}, name=${st.data.name_status || "?"}` : metaErr(st);
+  } catch (e) { out.phone_status = `FAILED: ${e.name}`; }
   try { out.waba_subscription = await ensureWabaSubscribed(); } catch (e) { out.waba_subscription = `FAILED: ${e.message}`; }
   lastLive = { at: Date.now(), result: out };
   return out;
