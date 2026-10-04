@@ -70,6 +70,58 @@ export async function GET(request) {
   return new Response("Forbidden", { status: 403, headers: { "cache-control": "no-store" } });
 }
 
+/*
+ * Meta only delivers real messages if the WhatsApp Business Account (WABA) is subscribed
+ * to this app (POST /{waba}/subscribed_apps). That's separate from the webhook fields in
+ * the app dashboard. This finds the WABA that owns our phone number, checks the
+ * subscription, and subscribes if missing. Idempotent: it only ever subscribes our own app.
+ */
+async function graphGet(path) {
+  const ver = envTrim("WHATSAPP_API_VERSION") || "v21.0";
+  const res = await fetch(`${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}/${path}`, { headers: { authorization: `Bearer ${envTrim("WHATSAPP_ACCESS_TOKEN")}` } });
+  return { ok: res.ok, data: await res.json().catch(() => ({})) };
+}
+async function graphPost(path) {
+  const ver = envTrim("WHATSAPP_API_VERSION") || "v21.0";
+  const res = await fetch(`${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}/${path}`, { method: "POST", headers: { authorization: `Bearer ${envTrim("WHATSAPP_ACCESS_TOKEN")}` } });
+  return { ok: res.ok, data: await res.json().catch(() => ({})) };
+}
+const metaErr = (r) => `Meta error ${r.data?.error?.code ?? "?"}: ${String(r.data?.error?.message || "").slice(0, 140)}`;
+
+async function findWabaIds() {
+  const ids = new Set();
+  const configured = envTrim("WHATSAPP_BUSINESS_ACCOUNT_ID");
+  if (configured) ids.add(configured);
+  // Token debug tells us which WABAs this token can manage.
+  const dbg = await graphGet(`debug_token?input_token=${encodeURIComponent(envTrim("WHATSAPP_ACCESS_TOKEN"))}`);
+  for (const g of dbg.data?.data?.granular_scopes || []) {
+    if (/whatsapp_business_(management|messaging)/.test(g.scope)) for (const id of g.target_ids || []) ids.add(String(id));
+  }
+  ids.add("562742200250790"); // ID provided during setup (may be the WABA or the business portfolio)
+  return [...ids];
+}
+
+async function ensureWabaSubscribed() {
+  const phoneId = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
+  const notes = [];
+  for (const id of await findWabaIds()) {
+    const nums = await graphGet(`${id}/phone_numbers?fields=id,display_phone_number`);
+    if (!nums.ok) { notes.push(`${id}: not a WABA this token can read`); continue; }
+    if (!(nums.data?.data || []).some((n) => String(n.id) === String(phoneId))) { notes.push(`${id}: doesn't own phone ${phoneId}`); continue; }
+    const subs = await graphGet(`${id}/subscribed_apps`);
+    if (!subs.ok) return `FAILED reading subscriptions on WABA ${id}: ${metaErr(subs)}`;
+    if ((subs.data?.data || []).length) {
+      const names = subs.data.data.map((a) => a.whatsapp_business_api_data?.name || a.name || a.id || "app").join(", ");
+      return `OK: WABA ${id} is subscribed (${names})`;
+    }
+    const post = await graphPost(`${id}/subscribed_apps`);
+    return post.ok && post.data?.success !== false
+      ? `FIXED: WABA ${id} was NOT subscribed to the app; subscribed it now`
+      : `FAILED subscribing WABA ${id}: ${metaErr(post)}`;
+  }
+  return `NOT FOUND: no WABA owning phone ${phoneId} (${notes.join("; ")})`;
+}
+
 // Real connectivity checks (no secret values returned). Throttled to protect Meta/Upstash quotas.
 let lastLive = { at: 0, result: null };
 async function liveChecks() {
@@ -94,6 +146,7 @@ async function liveChecks() {
       ? `OK: Meta accepted the token for ${d.display_phone_number || "?"} (${d.verified_name || "?"})`
       : `FAILED: Meta error ${d?.error?.code ?? res.status}: ${String(d?.error?.message || "").slice(0, 140)}`;
   } catch (e) { out.whatsapp_token = `FAILED: ${e.name}`; }
+  try { out.waba_subscription = await ensureWabaSubscribed(); } catch (e) { out.waba_subscription = `FAILED: ${e.message}`; }
   lastLive = { at: Date.now(), result: out };
   return out;
 }
