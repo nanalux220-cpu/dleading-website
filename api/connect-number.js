@@ -3,7 +3,7 @@
  * WhatsApp Cloud API (Meta has no dashboard button for numbers already added).
  *
  * Body: { key, step, method?, code?, pin? }
- *   key  : must equal WHATSAPP_VERIFY_TOKEN (only the owner knows it)
+ *   key  : must equal WHATSAPP_VERIFY_TOKEN for verify_code / register (status & request_code are open, capped)
  *   step : "status" | "request_code" | "verify_code" | "register"
  * The SMS code and PIN go straight to Meta; they're never stored or logged.
  */
@@ -13,6 +13,7 @@ import { whatsappEnv } from "./_lib/whatsapp.js";
 const env = (k) => String(process.env[k] || "").trim();
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
+let sent = [];
 const attempts = new Map();
 function limited(ip) {
   const now = Date.now();
@@ -44,7 +45,15 @@ export async function POST(request) {
   if (limited(ip)) return json(429, { ok: false, error: "Too many attempts. Wait 15 minutes." });
   let b;
   try { b = await request.json(); } catch { return json(400, { ok: false, error: "invalid json" }); }
-  if (!keyOk(b.key)) return json(401, { ok: false, error: "Wrong key. Use the WHATSAPP_VERIFY_TOKEN value from Vercel." });
+  // "status" and "request_code" are harmless (the code only goes to the business phone), so they
+  // don't need the key; request_code is capped. Verifying and registering still require the key.
+  const open = b.step === "status" || b.step === "request_code";
+  if (!open && !keyOk(b.key)) return json(401, { ok: false, error: "Wrong key. Use the WHATSAPP_VERIFY_TOKEN value from Vercel." });
+  if (b.step === "request_code") {
+    sent = sent.filter((t) => Date.now() - t < 60 * 60e3);
+    if (sent.length >= 5) return json(429, { ok: false, error: "Code already requested 5 times this hour. Use the last code you received, or wait." });
+    sent.push(Date.now());
+  }
   if (!env("WHATSAPP_ACCESS_TOKEN")) return json(503, { ok: false, error: "WHATSAPP_ACCESS_TOKEN not set in Vercel" });
   const phone = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
 
