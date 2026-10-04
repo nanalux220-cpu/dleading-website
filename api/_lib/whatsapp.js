@@ -13,7 +13,10 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 const GRAPH = process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com";
 const version = () => String(process.env.WHATSAPP_API_VERSION || "").trim() || "v21.0";
 
-const env = (k) => String(process.env[k] || "").trim();
+// Non-secret defaults for Dleading (env vars still override them).
+const DEFAULTS = { WHATSAPP_PHONE_NUMBER_ID: "1385944931264059" };
+const env = (k) => String(process.env[k] || "").trim() || DEFAULTS[k] || "";
+export const whatsappEnv = env;
 export function whatsappConfigured() {
   return !!(env("WHATSAPP_ACCESS_TOKEN") && env("WHATSAPP_PHONE_NUMBER_ID"));
 }
