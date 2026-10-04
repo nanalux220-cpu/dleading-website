@@ -20,6 +20,7 @@ function redis([c, ...a]) {
     case "SET": { if (a.includes("NX") && kv.has(a[0])) return null; kv.set(a[0], a[1]); return "OK"; }
     case "SADD": { const s = kv.get(a[0]) || new Set(); kv.set(a[0], s); let n = 0; for (const x of a.slice(1)) if (!s.has(x)) { s.add(x); n++; } return n; }
     case "SMEMBERS": return [...(kv.get(a[0]) || [])];
+    case "SCARD": return (kv.get(a[0]) || new Set()).size;
     case "LPUSH": { const l = list(a[0]); l.unshift(...a.slice(1).reverse()); return l.length; }
     case "RPUSH": { const l = list(a[0]); l.push(...a.slice(1)); return l.length; }
     case "LTRIM": { const l = list(a[0]); kv.set(a[0], l.slice(+a[1], +a[2] + 1)); return "OK"; }
@@ -180,6 +181,11 @@ await say("are you there? my budget is £700");
 check("after handoff: AI silent (no AI call, no reply)", log.claude.length === aiCalls && sent().length === sends, null);
 check("after handoff: message forwarded to the team", log.n8n.at(-1).body.action === "message" && log.n8n.at(-1).body.message.includes("£700"), log.n8n.at(-1));
 
+lastLiveReset: {
+  r = await wa.GET(new Request("https://x/api/whatsapp?live=1&t=2"));
+  const lc = (await r.json()).live_checks;
+  check("live check: shows last webhook result + contact count (no content)", (lc.cached || lc.last_webhook_from_meta?.includes("OK:")) && !JSON.stringify(lc).includes("Sparkle"), lc);
+}
 // ---- admin ----
 check("admin: no token -> 401", (await adminReq("GET", "?action=stats", null, "wrong")).status === 401, null);
 let a = await (await adminReq("GET", "?action=contacts")).json();
