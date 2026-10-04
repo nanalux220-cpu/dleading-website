@@ -14,11 +14,27 @@
     },
     "api/admin.js": {
       "maxDuration": 60
+    },
+    "api/connect-number.js": {
+      "maxDuration": 30
     }
   },
   "headers": [
     {
       "source": "/admin.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/connect-number.html",
       "headers": [
         {
           "key": "X-Robots-Tag",
