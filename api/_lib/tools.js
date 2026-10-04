@@ -48,8 +48,8 @@ export function sanitizeState(raw) {
 }
 
 const MAX_FORWARDED = 10;
-const HANDOFF_ACK = "Thanks, I've added that to your request. The Dleading team will reply to you directly.";
-const HANDOFF_ACK_FALLBACK = "Thanks. The Dleading team already has your request and will be in touch. If it's urgent, you can reach them on WhatsApp/phone +44 742 725 9935 or info@creativedleading.co.uk.";
+const HANDOFF_ACK = "Thanks, I've added that to your request. The team will reply to you directly, or tap below to chat with them on WhatsApp now.";
+const HANDOFF_ACK_FALLBACK = "Thanks. The Dleading team already has your request and will be in touch. If it's urgent, tap below to chat with them on WhatsApp, or email info@creativedleading.co.uk.";
 
 /**
  * Called instead of the AI while the chat is handed over to a human.
@@ -201,7 +201,7 @@ async function sendToN8n(urlEnv, payload) {
   }
 }
 
-const FAIL_MSG = "Sending failed. Do NOT say the team was notified. Apologise, and ask the visitor to contact Dleading directly: WhatsApp/phone +44 742 725 9935 or info@creativedleading.co.uk.";
+const FAIL_MSG = "Sending failed. Do NOT say the team was notified. Apologise briefly and point the visitor to the WhatsApp button (end your reply with [[WHATSAPP]]) or info@creativedleading.co.uk.";
 
 /**
  * Executes one tool call. `ctx` = { conversationId, transcript, page, state } (state is mutated).

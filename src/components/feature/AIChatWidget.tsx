@@ -7,7 +7,7 @@ import { useLocation } from "react-router-dom";
  */
 
 type Role = "user" | "assistant";
-interface Msg { role: Role; content: string }
+interface Msg { role: Role; content: string; cta?: "whatsapp" }
 /** Completed actions (lead sent, handoffs) — owned by the server, stored here, sent back each request. */
 type ActionState = Record<string, unknown> | null;
 interface ChatState {
@@ -71,9 +71,27 @@ function linkify(text: string): ReactNode[] {
   });
 }
 
+function WhatsAppAction() {
+  return (
+    <div className="flex justify-start -mt-1">
+      <a
+        href={WHATSAPP}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[14px] font-semibold text-white shadow-sm transition-opacity hover:opacity-90 active:scale-[0.98]"
+        style={{ backgroundColor: "#25D366" }}
+      >
+        <i className="ri-whatsapp-line text-lg" />
+        Chat on WhatsApp
+      </a>
+    </div>
+  );
+}
+
 function Bubble({ msg }: { msg: Msg }) {
   const mine = msg.role === "user";
   return (
+    <>
     <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[85%] px-3.5 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap break-words ${
@@ -85,6 +103,8 @@ function Bubble({ msg }: { msg: Msg }) {
         {mine ? msg.content : linkify(msg.content)}
       </div>
     </div>
+    {!mine && msg.cta === "whatsapp" && <WhatsAppAction />}
+    </>
   );
 }
 
@@ -146,13 +166,13 @@ export default function AIChatWidget() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           conversationId: chat.id,
-          messages: history.slice(start),
+          messages: history.slice(start).map(({ role, content }) => ({ role, content })),
           page: location.pathname,
           state: chat.actions ?? undefined,
         }),
         signal: controller.signal,
       });
-      let data: { reply?: string; ended?: boolean; state?: ActionState } = {};
+      let data: { reply?: string; ended?: boolean; cta?: string; state?: ActionState } = {};
       try { data = await res.json(); } catch { /* non-JSON error page */ }
       // Record completed actions even if the reply itself failed (e.g. lead sent, then AI error).
       if (data.state && typeof data.state === "object") {
@@ -168,7 +188,7 @@ export default function AIChatWidget() {
 
       setChat((c) => c.id !== id ? c : ({
         ...c,
-        messages: [...history, { role: "assistant", content: data.reply || "" }],
+        messages: [...history, { role: "assistant", content: data.reply || "", ...(data.cta === "whatsapp" ? { cta: "whatsapp" as const } : {}) }],
         ended: c.ended || !!data.ended,
         updatedAt: Date.now(),
       }));

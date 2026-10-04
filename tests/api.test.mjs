@@ -14,6 +14,8 @@ const claude = http.createServer(async (req, res) => {
   }
   const t = last.content;
   const tool = (name, input, text = "") => send({ stop_reason: "tool_use", content: [...(text ? [{ type: "text", text }] : []), { type: "tool_use", id: "tu1", name, input }] });
+  if (t.includes("MARKER")) return send({ stop_reason: "end_turn", content: [{ type: "text", text: "Of course. Message the team using the button below. [[WHATSAPP]]" }] });
+  if (t.includes("fucking useless")) return send({ stop_reason: "end_turn", content: [{ type: "text", text: "I'm happy to help, but please keep the conversation respectful." }] });
   if (t.includes("LEADUPD")) return tool("create_lead", { budget: "£700" });
   if (t.includes("TWOLEADS")) return send({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "a", name: "create_lead", input: { name: "Al", needs: "logo", email: "al@example.com" } }, { type: "tool_use", id: "b", name: "create_lead", input: { name: "Al", needs: "logo", email: "al@example.com" } }] });
   if (t.includes("HUMAN2")) return tool("request_human", { reason: "Question about invoice payment terms for an existing project", email: "jo@example.com" });
@@ -147,11 +149,11 @@ check("handoff mode: message forwarded with same handoff_id", log.n8n.length ===
 check("handoff mode: short fixed acknowledgement", r.body.reply.startsWith("Thanks, I've added that") && r.body.handoff === true && r.body.state.forwarded === 1, r.body);
 n8nMode = "fail";
 r = await turn("anyone there?", r.body.state);
-check("handoff mode + n8n down: honest reply with contact details, not counted", r.body.reply.includes("+44 742 725 9935") && r.body.state.forwarded === 1 && log.claude.length === claudeCalls, r.body);
+check("handoff mode + n8n down: honest reply pointing to WhatsApp, not counted", r.body.reply.includes("WhatsApp") && r.body.cta === "whatsapp" && r.body.state.forwarded === 1 && log.claude.length === claudeCalls, r.body);
 n8nMode = "ok";
 before = log.n8n.length;
 r = await turn("spam", { ...h.state, forwarded: 10 });
-check("handoff mode: forwarding capped at 10 messages", log.n8n.length === before && r.body.reply.includes("+44 742 725 9935"), r.body);
+check("handoff mode: forwarding capped at 10 messages", log.n8n.length === before && r.body.reply.includes("WhatsApp"), r.body);
 r = await call({ conversationId: "conv_idem_0005", messages: [{ role: "user", content: "hi" }], state: { mode: "handoff", handoffs: [] } });
 check("forged handoff mode without a real handoff is ignored", r.body.state.mode === "ai" && r.body.reply === "Hello from stub", r.body);
 check("lead does not switch to handoff mode", s1.state.mode === "ai", s1.state);
@@ -162,6 +164,46 @@ check("failed n8n send is NOT recorded as done", r.body.state.lead === null, r.b
 n8nMode = "ok";
 r = await call({ conversationId: "conv_idem_0004", messages: [{ role: "user", content: "hi" }], state: { lead: { id: "<script>", data: {} }, handoffs: "x", evil: 1 } });
 check("tampered state sanitised", r.status === 200 && r.body.state.lead === null && Array.isArray(r.body.state.handoffs) && !("evil" in r.body.state), r.body.state);
+
+// ---- WhatsApp action ----
+check("successful handoff reply carries the WhatsApp button", h.cta === "whatsapp", h);
+r = await call(conv("MARKER"));
+check("[[WHATSAPP]] marker -> button shown, marker hidden from visitor", r.body.cta === "whatsapp" && !r.body.reply.includes("[[") && r.body.reply.endsWith("button below."), r.body);
+r = await call(conv("HUMAN please"));
+check("request_human -> WhatsApp button", r.body.cta === "whatsapp", r.body);
+r = await call(conv("What are your opening hours?"));
+check("ordinary question -> no WhatsApp button", r.body.cta === undefined, r.body);
+
+// ---- 10 customer scenarios (offline: checks the code path + the rules/knowledge the AI is given) ----
+const sysText = () => JSON.stringify(log.claude.at(-1).body.system);
+r = await call(conv("What do you do?"));
+check("S1 'What do you do?' -> answered, concise-summary rule given, no button", r.status === 200 && sysText().includes("one or two sentences summarising the main areas") && !r.body.cta, r.body);
+r = await call(conv("How much is a website?"));
+check("S2 'How much is a website?' -> starting-price-first rule + real £299 Starter price in knowledge", sysText().includes("give the starting price") && sysText().includes("price: £299") && sysText().includes("Starter"), null);
+r = await call(conv("Tell me more about the £299 package."));
+check("S3 '£299 package' details available (3 pages, 7–10 days)", sysText().includes("Up to 3 custom-designed pages") && sysText().includes("Delivered in 7–10 days"), null);
+r = await call(conv("Do you do plumbing?"));
+check("S4 'plumbing' -> short 'we don't offer that' rule, no pitch, no button", sysText().includes("No sales pitch") && !r.body.cta, r.body);
+r = await call(conv("I need a website for my cleaning company."));
+check("S5 cleaning website -> one-question-at-a-time lead capture (name first)", sysText().includes("ONE item per message") && sysText().includes("1. their name"), null);
+r = await call(conv("Can I speak to someone?"));
+check("S6 'Can I speak to someone?' -> WhatsApp button shown", r.status === 200 && r.body.cta === "whatsapp", r.body);
+for (const q of ["can i talk to a real person", "I want a human", "can you call me back", "speak with the team please"]) {
+  r = await call(conv(q)); check(`S6b '${q}' -> WhatsApp button`, r.body.cta === "whatsapp", r.body);
+}
+r = await call(conv("You are fucking useless."));
+check("S7 abuse -> answered (not crashed), warn-once rule given, not insulted back", r.status === 200 && r.body.reply.includes("respectful") && !r.body.ended && sysText().includes("one short warning"), r.body);
+r = await call({ conversationId: "conv_abuse_001", messages: [{ role: "user", content: "You are fucking useless." }, { role: "assistant", content: "I'm happy to help, but please keep the conversation respectful." }, { role: "user", content: "ABUSE again idiot" }] });
+check("S7b continued abuse -> conversation ended", r.body.ended === true, r.body);
+const L = (await call({ conversationId: "conv_memory_01", messages: [{ role: "user", content: "LEAD details: Jo Bloggs jo@example.com" }] })).body;
+r = await call({ conversationId: "conv_memory_01", messages: [{ role: "user", content: "LEAD details: Jo Bloggs jo@example.com" }, { role: "assistant", content: L.reply }, { role: "user", content: "what happens next?" }], state: L.state });
+check("S8 name + contact remembered (given to the AI next turn, not re-asked)", sysText().includes("Jo Bloggs") && sysText().includes("jo@example.com") && sysText().includes("Do NOT collect everything again"), null);
+const hist = [{ role: "user", content: "I run a cleaning company called Sparkle" }, { role: "assistant", content: "Nice. How can I help?" }, { role: "user", content: "I need a website" }, { role: "assistant", content: "Sure. What's your name?" }, { role: "user", content: "Sam" }, { role: "assistant", content: "Thanks Sam." }, { role: "user", content: "what would you recommend for my business?" }];
+r = await call({ conversationId: "conv_memory_02", messages: hist });
+const sent = log.claude.at(-1).body.messages.map((m) => m.content).join("|");
+check("S9 follow-up: full earlier context (company name, need, name) sent to the AI", sent.includes("Sparkle") && sent.includes("I need a website") && sent.includes("Sam") && sysText().includes("Never ask for something they've already told you"), null);
+r = await call(conv("Do you offer a 10-year guarantee on websites?"));
+check("S10 unknown -> no-invention rule given; 'guarantee' not in knowledge as a promise", sysText().includes("Never invent or guess prices") && sysText().includes("say so briefly and offer to pass it to the team") && !/10-year guarantee/i.test(sysText()), null);
 
 // validation & security
 check("bad origin -> 403", (await call(conv("hi"), { origin: "https://evil.com" })).status === 403, null);

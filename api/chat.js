@@ -22,6 +22,21 @@ const MAX_MESSAGES = 40;
 const MAX_USER_CHARS = 2000;
 const MAX_TOTAL_CHARS = 40000;
 const MAX_TOOL_ROUNDS = 4;
+
+/*
+ * WhatsApp action: the widget shows a "Chat on WhatsApp" button under a reply when
+ * the response has cta: "whatsapp". It's shown when the visitor asks for a person,
+ * when a handoff is requested/active, or when the AI ends its reply with [[WHATSAPP]].
+ */
+const WA_MARKER = /\s*\[\[WHATSAPP\]\]\s*/gi;
+const HUMAN_RE = /\b(speak|talk|chat)\s+(to|with)\s+(someone|somebody|anyone|a\s+(human|person|real\s+person)|an?\s+agent|(a\s+)?(member\s+of\s+)?staff|(the\s+)?team|you\s+guys)|\b(real|actual)\s+(person|human)|\bhuman\b|\bwhats\s?app\b|\bcall\s+me\b|\bcall\s+back\b/i;
+function finishReply(text, { latest, handedOver, humanRequested }) {
+  const marked = WA_MARKER.test(text);
+  WA_MARKER.lastIndex = 0;
+  const reply = text.replace(WA_MARKER, " ").replace(/[ \t]+\n/g, "\n").trim();
+  const cta = marked || handedOver || humanRequested || HUMAN_RE.test(latest) ? "whatsapp" : undefined;
+  return { reply, cta };
+}
 const AI_TIMEOUT_MS = 25000;
 
 const FALLBACK =
@@ -146,7 +161,7 @@ export async function POST(request) {
   // Handed over to a human: the AI stays quiet; new messages go to the team.
   if (state.mode === "handoff") {
     const out = await handleHandoffMode(ctx, messages[messages.length - 1].content);
-    return json(200, { reply: out.reply, ended: false, handoff: true, actions: [{ type: "handoff_message", ok: out.forwarded }], state });
+    return json(200, { reply: out.reply, ended: false, handoff: true, cta: "whatsapp", actions: [{ type: "handoff_message", ok: out.forwarded }], state });
   }
 
   try {
@@ -158,7 +173,9 @@ export async function POST(request) {
 
       if (data.stop_reason !== "tool_use" || !toolUses.length || round === MAX_TOOL_ROUNDS) {
         if (!text) throw new Error("empty_reply");
-        return json(200, { reply: text, ended, handoff: state.mode === "handoff", actions, state });
+        const fin = finishReply(text, { latest: body.messages[body.messages.length - 1].content, handedOver: state.mode === "handoff", humanRequested: actions.some((a) => a.type === "handoff") });
+        if (!fin.reply) throw new Error("empty_reply");
+        return json(200, { reply: fin.reply, cta: fin.cta, ended, handoff: state.mode === "handoff", actions, state });
       }
 
       messages.push({ role: "assistant", content });
@@ -173,7 +190,7 @@ export async function POST(request) {
 
       if (ended) {
         // Use the closing line the model already wrote, or a neutral default.
-        return json(200, { reply: text || "I'm going to end our chat here. If you need help later, you can contact Dleading on +44 742 725 9935.", ended, actions, state });
+        return json(200, { reply: text.replace(WA_MARKER, " ").trim() || "I'm going to end our chat here. If you need help later, you can contact Dleading on +44 742 725 9935.", ended, actions, state });
       }
     }
   } catch (e) {
