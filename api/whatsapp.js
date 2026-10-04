@@ -97,8 +97,13 @@ async function findWabaIds() {
   for (const g of dbg.data?.data?.granular_scopes || []) {
     if (/whatsapp_business_(management|messaging)/.test(g.scope)) for (const id of g.target_ids || []) ids.add(String(id));
   }
-  ids.add("562742200250790"); // ID provided during setup (may be the WABA or the business portfolio)
-  return [...ids];
+  // The business portfolio ID: list the WABAs it owns / has access to.
+  const portfolio = envTrim("META_BUSINESS_ID") || "562742200250790";
+  for (const edge of ["owned_whatsapp_business_accounts", "client_whatsapp_business_accounts"]) {
+    const r = await graphGet(`${portfolio}/${edge}?fields=id,name`);
+    for (const w of r.data?.data || []) ids.add(String(w.id));
+  }
+  return [...ids].filter((id) => id !== portfolio);
 }
 
 async function ensureWabaSubscribed() {
