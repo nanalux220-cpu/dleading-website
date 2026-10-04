@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Dleading WhatsApp Admin</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css">
+<style>
+  :root { --o1:#F69D01; --o2:#F65901; --ink:#1f2937; --mute:#6b7280; --line:#e5e7eb; --bg:#faf8f6; --wa:#25D366; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--ink); background:var(--bg); }
+  header { background:linear-gradient(135deg,var(--o1),var(--o2)); color:#fff; padding:14px 16px; display:flex; align-items:center; gap:12px; }
+  header h1 { font-size:17px; margin:0; flex:1; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  nav { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  nav button { border:1px solid var(--line); background:#fff; padding:8px 14px; border-radius:999px; cursor:pointer; font:inherit; }
+  nav button.on { background:var(--o2); color:#fff; border-color:var(--o2); }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .stat b { display:block; font-size:26px; }
+  .stat span { color:var(--mute); font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mute); font-weight:600; font-size:12px; text-transform:uppercase; }
+  tr.click { cursor:pointer; } tr.click:hover { background:#fff7ed; }
+  .tablewrap { overflow-x:auto; }
+  input, textarea, select { width:100%; font:inherit; padding:9px 11px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+  textarea { min-height:80px; }
+  label { display:block; font-size:13px; color:var(--mute); margin:10px 0 4px; }
+  .btn { display:inline-flex; align-items:center; gap:6px; border:0; border-radius:10px; padding:9px 14px; font:inherit; font-weight:600; cursor:pointer; color:#fff; background:linear-gradient(135deg,var(--o1),var(--o2)); }
+  .btn.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .btn.wa { background:var(--wa); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:999px; font-size:12px; background:#f3f4f6; }
+  .pill.h { background:#fee2e2; color:#991b1b; } .pill.ok { background:#dcfce7; color:#166534; }
+  .chat { max-height:420px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:8px; background:#f9fafb; border-radius:10px; }
+  .m { max-width:80%; padding:7px 11px; border-radius:12px; white-space:pre-wrap; font-size:14px; }
+  .m.in { background:#fff; border:1px solid var(--line); align-self:flex-start; }
+  .m.out { background:#ffedd5; align-self:flex-end; }
+  .m small { display:block; color:var(--mute); font-size:11px; }
+  .note { color:var(--mute); font-size:13px; }
+  .err { color:#b91c1c; } .okmsg { color:#166534; }
+  #login { max-width:420px; margin:60px auto; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<header><i class="ri-whatsapp-line" style="font-size:22px"></i><h1>Dleading WhatsApp Admin</h1><button class="btn ghost hidden" id="logout" style="padding:6px 10px">Log out</button></header>
+
+<div id="login" class="card">
+  <h2 style="margin-top:0">Sign in</h2>
+  <p class="note">Enter the ADMIN_TOKEN you set in Vercel. It's kept only in this browser tab.</p>
+  <input id="token" type="password" placeholder="Admin token" autocomplete="off" />
+  <p><button class="btn" id="go">Sign in</button> <span id="loginErr" class="err"></span></p>
+</div>
+
+<main id="app" class="hidden">
+  <nav>
+    <button data-tab="contacts" class="on">Contacts</button>
+    <button data-tab="campaigns">Campaigns</button>
+    <button data-tab="auto">Auto-replies</button>
+  </nav>
+
+  <section id="tab-contacts">
+    <div class="card stats" id="stats"></div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h3 style="margin:0">Contacts &amp; leads</h3>
+        <div class="row">
+          <button class="btn ghost" data-export="contacts"><i class="ri-download-2-line"></i>Contacts CSV</button>
+          <button class="btn ghost" data-export="messages"><i class="ri-download-2-line"></i>Messages CSV</button>
+        </div>
+      </div>
+      <div class="tablewrap"><table id="contacts"></table></div>
+    </div>
+    <div class="card hidden" id="convo">
+      <div class="row" style="justify-content:space-between"><h3 style="margin:0" id="convoTitle"></h3>
+        <div class="row"><button class="btn ghost" id="resume"><i class="ri-robot-2-line"></i>Hand back to AI</button><button class="btn ghost" id="closeConvo">Close</button></div></div>
+      <p class="note">Replies typed here are sent from the Dleading WhatsApp number. WhatsApp only allows free-text replies within 24 hours of the customer's last message.</p>
+      <div class="chat" id="chat"></div>
+      <label>Reply as Dleading</label>
+      <textarea id="replyText" placeholder="Type a reply…"></textarea>
+      <p class="row"><button class="btn wa" id="sendReply"><i class="ri-send-plane-2-fill"></i>Send</button><span id="replyMsg"></span></p>
+    </div>
+  </section>
+
+  <section id="tab-campaigns" class="hidden">
+    <div class="card">
+      <h3 style="margin-top:0">Send a campaign</h3>
+      <p class="note">Campaigns must use a message template approved in WhatsApp Manager (Account tools → Message templates). Only message people who agreed to hear from you. Anyone who replied STOP is skipped automatically. Max 100 numbers per send.</p>
+      <label>Campaign name</label><input id="cName" placeholder="e.g. October website offer" />
+      <div class="row" style="gap:12px">
+        <div style="flex:2;min-width:200px"><label>Approved template name</label><input id="cTpl" placeholder="e.g. hello_world" /></div>
+        <div style="flex:1;min-width:120px"><label>Language code</label><input id="cLang" value="en_GB" /></div>
+      </div>
+      <label>Template variables {{1}}, {{2}}… (one per line, optional)</label><textarea id="cParams" style="min-height:60px"></textarea>
+      <label>Send to</label>
+      <select id="cAudience"><option value="list">These numbers</option><option value="all">All saved contacts (not opted out)</option></select>
+      <textarea id="cNumbers" placeholder="+447700900123, 07700 900456 …"></textarea>
+      <p class="row"><button class="btn" id="sendCampaign"><i class="ri-megaphone-line"></i>Send campaign</button><span id="cMsg"></span></p>
+    </div>
+    <div class="card"><h3 style="margin-top:0">Recent campaigns</h3><div class="tablewrap"><table id="campaigns"></table></div></div>
+  </section>
+
+  <section id="tab-auto" class="hidden">
+    <div class="card">
+      <h3 style="margin-top:0">Keyword auto-replies</h3>
+      <p class="note">If a customer's message contains the keyword, this fixed reply is sent instantly instead of the AI. Keep them factual. Leave empty to let the AI handle everything.</p>
+      <div id="rules"></div>
+      <p class="row"><button class="btn ghost" id="addRule"><i class="ri-add-line"></i>Add rule</button><button class="btn" id="saveRules">Save</button><span id="rMsg"></span></p>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const when = (t) => t ? new Date(t).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" }) : "";
+  let token = "";
+  try { token = sessionStorage.getItem("dl_admin") || ""; } catch {}
+  let current = null;
+
+  async function api(method, q = "", body) {
+    const res = await fetch(`/api/admin${q}`, { method, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    if (res.status === 401) { logout(); throw new Error("Session expired, sign in again"); }
+    const ct = res.headers.get("content-type") || "";
+    const data = ct.includes("json") ? await res.json() : await res.blob();
+    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+    return data;
+  }
+  function logout() { token = ""; try { sessionStorage.removeItem("dl_admin"); } catch {} $("#app").classList.add("hidden"); $("#logout").classList.add("hidden"); $("#login").classList.remove("hidden"); }
+
+  $("#go").onclick = async () => {
+    token = $("#token").value.trim();
+    try { await api("GET", "?action=stats"); try { sessionStorage.setItem("dl_admin", token); } catch {} start(); }
+    catch (e) { $("#loginErr").textContent = e.message === "unauthorised" ? "Wrong token" : e.message; }
+  };
+  $("#token").onkeydown = (e) => { if (e.key === "Enter") $("#go").click(); };
+  $("#logout").onclick = logout;
+
+  document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
+    document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
+    ["contacts", "campaigns", "auto"].forEach((t) => $(`#tab-${t}`).classList.toggle("hidden", t !== b.dataset.tab));
+    if (b.dataset.tab === "campaigns") loadCampaigns();
+    if (b.dataset.tab === "auto") loadRules();
+  });
+
+  async function start() {
+    $("#login").classList.add("hidden"); $("#app").classList.remove("hidden"); $("#logout").classList.remove("hidden");
+    loadContacts();
+  }
+
+  async function loadContacts() {
+    const [s, c] = await Promise.all([api("GET", "?action=stats"), api("GET", "?action=contacts")]);
+    $("#stats").innerHTML = [["Contacts", s.contacts], ["New (24h)", s.new_last_24h], ["Active (24h)", s.active_last_24h], ["Opted out", s.opted_out]]
+      .map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("") +
+      (s.whatsapp_configured ? "" : `<div class="stat err">WhatsApp env vars missing in Vercel</div>`);
+    $("#contacts").innerHTML = `<tr><th>Name</th><th>Number</th><th>Last message</th><th>Last topic</th><th>From page</th><th>Status</th></tr>` +
+      (c.contacts.length ? c.contacts.map((x) => `<tr class="click" data-n="${esc(x.wa_id)}"><td>${esc(x.name || "—")}</td><td>+${esc(x.wa_id)}</td><td>${when(x.last_seen)}</td><td>${esc(x.last_topic)}</td><td>${esc(x.source_page)}</td><td>${x.mode === "handoff" ? '<span class="pill h">Needs human</span>' : '<span class="pill ok">AI</span>'}${x.opted_out ? ' <span class="pill">Opted out</span>' : ""}</td></tr>`).join("")
+        : `<tr><td colspan="6" class="note">No WhatsApp contacts yet. Send "Hi" to your business number to test.</td></tr>`);
+    document.querySelectorAll("#contacts tr.click").forEach((tr) => tr.onclick = () => openConvo(tr.dataset.n, tr.children[0].textContent));
+  }
+
+  async function openConvo(n, name) {
+    current = n;
+    $("#convo").classList.remove("hidden");
+    $("#convoTitle").textContent = `${name} · +${n}`;
+    const d = await api("GET", `?action=messages&number=${encodeURIComponent(n)}`);
+    $("#chat").innerHTML = d.messages.slice().reverse().map((m) => `<div class="m ${m.dir}">${esc(m.text)}<small>${when(m.ts)}${m.dir === "out" ? " · " + esc(m.kind || "") + (m.status ? " · " + esc(m.status) : "") : ""}</small></div>`).join("");
+    $("#chat").scrollTop = $("#chat").scrollHeight;
+    $("#convo").scrollIntoView({ behavior: "smooth" });
+  }
+  $("#closeConvo").onclick = () => { $("#convo").classList.add("hidden"); current = null; };
+  $("#sendReply").onclick = async () => {
+    const text = $("#replyText").value.trim(); if (!text || !current) return;
+    $("#replyMsg").textContent = "Sending…"; $("#replyMsg").className = "note";
+    try { await api("POST", "", { action: "send", number: current, text }); $("#replyText").value = ""; $("#replyMsg").textContent = "Sent"; $("#replyMsg").className = "okmsg"; openConvo(current, $("#convoTitle").textContent.split(" · ")[0]); }
+    catch (e) { $("#replyMsg").textContent = e.message + " (more than 24h since their last message? Use a template campaign instead.)"; $("#replyMsg").className = "err"; }
+  };
+  $("#resume").onclick = async () => { if (!current) return; await api("POST", "", { action: "resume_ai", number: current }); $("#replyMsg").textContent = "The AI will answer this customer's next message."; $("#replyMsg").className = "okmsg"; loadContacts(); };
+
+  document.querySelectorAll("[data-export]").forEach((b) => b.onclick = async () => {
+    const blob = await api("GET", `?action=export&type=${b.dataset.export}`);
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `dleading-whatsapp-${b.dataset.export}-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  $("#cAudience").onchange = () => $("#cNumbers").classList.toggle("hidden", $("#cAudience").value === "all");
+  $("#sendCampaign").onclick = async () => {
+    const all = $("#cAudience").value === "all";
+    if (!confirm(all ? "Send this template to ALL saved contacts who haven't opted out?" : "Send this campaign now?")) return;
+    $("#cMsg").textContent = "Sending…"; $("#cMsg").className = "note";
+    try {
+      const r = await api("POST", "", { action: "broadcast", name: $("#cName").value, template: $("#cTpl").value.trim(), language: $("#cLang").value.trim(),
+        params: $("#cParams").value.split("\n").map((s) => s.trim()).filter(Boolean), ...(all ? { audience: "all" } : { numbers: $("#cNumbers").value }) });
+      const c = r.campaign;
+      $("#cMsg").innerHTML = `Sent ${c.sent}, failed ${c.failed}, skipped (opted out) ${c.skipped}.` + (c.errors.length ? ` First error: ${esc(c.errors[0].number)} ${esc(c.errors[0].detail || c.errors[0].error)}` : "");
+      $("#cMsg").className = c.failed ? "err" : "okmsg"; loadCampaigns();
+    } catch (e) { $("#cMsg").textContent = e.message; $("#cMsg").className = "err"; }
+  };
+  async function loadCampaigns() {
+    const d = await api("GET", "?action=campaigns");
+    $("#campaigns").innerHTML = `<tr><th>Campaign</th><th>Template</th><th>Date</th><th>Sent</th><th>Delivered</th><th>Read</th><th>Failed</th><th>Skipped</th></tr>` +
+      (d.campaigns.length ? d.campaigns.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.template)}</td><td>${when(c.created_at)}</td><td>${c.stats.sent}</td><td>${c.stats.delivered}</td><td>${c.stats.read}</td><td>${c.failed + c.stats.failed_after_send}</td><td>${c.skipped}</td></tr>`).join("")
+        : `<tr><td colspan="8" class="note">No campaigns yet.</td></tr>`);
+  }
+
+  let rules = [];
+  function drawRules() {
+    $("#rules").innerHTML = rules.map((r, i) => `<div class="card" style="padding:12px"><div class="row" style="gap:10px">
+      <div style="flex:1;min-width:160px"><label>Keyword</label><input data-i="${i}" data-k="keyword" value="${esc(r.keyword)}"></div>
+      <div style="width:140px"><label>Match</label><select data-i="${i}" data-k="match"><option value="contains"${r.match !== "exact" ? " selected" : ""}>Contains</option><option value="exact"${r.match === "exact" ? " selected" : ""}>Exact</option></select></div>
+      <div style="width:110px"><label>Enabled</label><select data-i="${i}" data-k="enabled"><option value="1"${r.enabled !== false ? " selected" : ""}>Yes</option><option value="0"${r.enabled === false ? " selected" : ""}>No</option></select></div></div>
+      <label>Reply</label><textarea data-i="${i}" data-k="reply">${esc(r.reply)}</textarea>
+      <button class="btn ghost" data-del="${i}" style="margin-top:8px"><i class="ri-delete-bin-line"></i>Remove</button></div>`).join("") || `<p class="note">No auto-replies. The AI answers everything.</p>`;
+    document.querySelectorAll("#rules [data-k]").forEach((el) => el.oninput = el.onchange = () => { const r = rules[el.dataset.i]; r[el.dataset.k] = el.dataset.k === "enabled" ? el.value === "1" : el.value; });
+    document.querySelectorAll("#rules [data-del]").forEach((b) => b.onclick = () => { rules.splice(+b.dataset.del, 1); drawRules(); });
+  }
+  async function loadRules() { rules = (await api("GET", "?action=autoreplies")).rules; drawRules(); }
+  $("#addRule").onclick = () => { rules.push({ keyword: "", match: "contains", reply: "", enabled: true }); drawRules(); };
+  $("#saveRules").onclick = async () => {
+    try { rules = (await api("POST", "", { action: "save_autoreplies", rules })).rules; drawRules(); $("#rMsg").textContent = "Saved"; $("#rMsg").className = "okmsg"; }
+    catch (e) { $("#rMsg").textContent = e.message; $("#rMsg").className = "err"; }
+  };
+
+  if (token) api("GET", "?action=stats").then(start).catch(logout);
+})();
+</script>
+</body>
+</html>

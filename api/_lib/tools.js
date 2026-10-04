@@ -56,10 +56,10 @@ const HANDOFF_ACK_FALLBACK = "Thanks. The Dleading team already has your request
  * Forwards the visitor's new message to the handoff workflow (same handoff_id, so
  * n8n updates the same row) and returns a short fixed acknowledgement.
  */
-export async function handleHandoffMode(ctx, latestMessage) {
+export async function handleHandoffMode(ctx, latestMessage, channel = "web") {
   const st = ctx.state;
   const h = st.handoffs[st.handoffs.length - 1];
-  if (st.forwarded >= MAX_FORWARDED) return { reply: HANDOFF_ACK_FALLBACK, forwarded: false };
+  if (st.forwarded >= MAX_FORWARDED) return { reply: channel === "whatsapp" ? "" : HANDOFF_ACK_FALLBACK, forwarded: false };
   const r = await sendToN8n("N8N_HANDOFF_WEBHOOK_URL", {
     type: "handoff",
     action: "message",
@@ -74,6 +74,8 @@ export async function handleHandoffMode(ctx, latestMessage) {
     transcript: ctx.transcript,
   });
   if (r.ok) st.forwarded += 1;
+  // WhatsApp: a human has the conversation, so the AI stays completely silent.
+  if (channel === "whatsapp") return { reply: "", forwarded: r.ok };
   return { reply: r.ok ? HANDOFF_ACK : HANDOFF_ACK_FALLBACK, forwarded: r.ok };
 }
 
@@ -176,6 +178,7 @@ function contactFields(input) {
 }
 
 /** POST to an n8n webhook. Never throws. */
+export const notifyN8n = (urlEnv, payload) => sendToN8n(urlEnv, payload);
 async function sendToN8n(urlEnv, payload) {
   const url = process.env[urlEnv];
   if (!url) return { ok: false, error: "not_configured" };
@@ -221,6 +224,7 @@ export async function runTool(name, input, ctx) {
       const st = ctx.state;
       const incoming = {};
       for (const f of LEAD_FIELDS) incoming[f] = clean(input[f], f === "needs" ? 1000 : f === "name" ? 100 : 254);
+      if (!incoming.phone && ctx.contactPhone) incoming.phone = ctx.contactPhone; // WhatsApp: we already know their number
       if (!["email", "phone", "whatsapp"].includes(incoming.preferred_contact)) incoming.preferred_contact = "";
       // Merge: new non-empty values override earlier ones.
       const prev = st.lead?.data || {};
@@ -267,7 +271,7 @@ export async function runTool(name, input, ctx) {
       const reason = clean(input.reason, 500);
       // Fall back to contact details already given in a lead.
       const ld = st.lead?.data || {};
-      const contact = { email: input.email || ld.email, phone: input.phone || ld.phone };
+      const contact = { email: input.email || ld.email, phone: input.phone || ld.phone || ctx.contactPhone };
       const { email, phone, errors } = contactFields(contact);
       if (!reason) errors.push("need a reason");
       if (errors.length) return { result: { ok: false, error: errors.join("; ") + ". If the visitor won't share contact details, give them Dleading's contact details instead." } };

@@ -163,7 +163,7 @@
       ],
       "parameters": {
         "sendTo": "info@creativedleading.co.uk",
-        "subject": "={{ $('Format').item.json.action === 'update' ? 'UPDATED lead' : 'New website lead' }}: {{ $('Format').item.json.name }}{{ $('Format').item.json.business_name ? ' (' + $('Format').item.json.business_name + ')' : '' }}",
+        "subject": "={{ $('Format').item.json.action === 'new_contact' ? 'New WhatsApp contact' : $('Format').item.json.action === 'update' ? 'UPDATED lead' : 'New lead' }}: {{ $('Format').item.json.name || $('Format').item.json.phone }}{{ $('Format').item.json.business_name ? ' (' + $('Format').item.json.business_name + ')' : '' }}",
         "emailType": "text",
         "message": "=Lead from the website AI assistant ({{ $('Format').item.json.action === 'update' ? 'UPDATE #' + $('Format').item.json.version + ' \u2014 same person, new/corrected details' : 'new' }})\nLead ID: {{ $('Format').item.json.lead_id }}\n\nName: {{ $('Format').item.json.name }}\nEmail: {{ $('Format').item.json.email }}\nPhone/WhatsApp: {{ $('Format').item.json.phone }}\nBusiness: {{ $('Format').item.json.business_name }}\nNeeds: {{ $('Format').item.json.needs }}\nBudget: {{ $('Format').item.json.budget }}\nPreferred contact: {{ $('Format').item.json.preferred_contact }}\nPage: {{ $('Format').item.json.page }}\nTime: {{ $('Format').item.json.timestamp }}\n\n--- Conversation ---\n{{ $('Format').item.json.transcript }}",
         "options": {

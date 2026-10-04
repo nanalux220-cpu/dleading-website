@@ -13,34 +13,14 @@
  *   ALLOWED_ORIGINS          optional extra origins, comma-separated
  *   ABUSE_MAX_WARNINGS       optional, default 1
  */
-import { buildSystem } from "./_lib/prompt.js";
-import { TOOL_DEFS, runTool, sanitizeState, stateNotes, handleHandoffMode } from "./_lib/tools.js";
+import { sanitizeState } from "./_lib/tools.js";
+import { runAgent, FALLBACK } from "./_lib/agent.js";
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
-const API_BASE = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
 const MAX_MESSAGES = 40;
 const MAX_USER_CHARS = 2000;
 const MAX_TOTAL_CHARS = 40000;
-const MAX_TOOL_ROUNDS = 4;
 
-/*
- * WhatsApp action: the widget shows a "Chat on WhatsApp" button under a reply when
- * the response has cta: "whatsapp". It's shown when the visitor asks for a person,
- * when a handoff is requested/active, or when the AI ends its reply with [[WHATSAPP]].
- */
-const WA_MARKER = /\s*\[\[WHATSAPP\]\]\s*/gi;
-const HUMAN_RE = /\b(speak|talk|chat)\s+(to|with)\s+(someone|somebody|anyone|a\s+(human|person|real\s+person)|an?\s+agent|(a\s+)?(member\s+of\s+)?staff|(the\s+)?team|you\s+guys)|\b(real|actual)\s+(person|human)|\bhuman\b|\bwhats\s?app\b|\bcall\s+me\b|\bcall\s+back\b/i;
-function finishReply(text, { latest, handedOver, humanRequested }) {
-  const marked = WA_MARKER.test(text);
-  WA_MARKER.lastIndex = 0;
-  const reply = text.replace(WA_MARKER, " ").replace(/[ \t]+\n/g, "\n").trim();
-  const cta = marked || handedOver || humanRequested || HUMAN_RE.test(latest) ? "whatsapp" : undefined;
-  return { reply, cta };
-}
-const AI_TIMEOUT_MS = 25000;
 
-const FALLBACK =
-  "Sorry, I'm having trouble responding right now. You can reach the Dleading team directly on WhatsApp/phone +44 742 725 9935 or at info@creativedleading.co.uk.";
 
 // ---------- helpers ----------
 function json(status, body, extra = {}) {
@@ -94,38 +74,7 @@ function validate(body) {
   return null;
 }
 
-async function callClaude(messages, state) {
-  const system = buildSystem();
-  const notes = stateNotes(state);
-  if (notes.length) system.push({ type: "text", text: "# Conversation state\n" + notes.join("\n") });
-  const body = JSON.stringify({ model: MODEL, max_tokens: 500, system, tools: TOOL_DEFS, messages });
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
-    try {
-      const res = await fetch(`${API_BASE}/v1/messages`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": process.env.ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body,
-        signal: controller.signal,
-      });
-      if (res.ok) return await res.json();
-      const retryable = res.status === 429 || res.status >= 500;
-      console.error(`[chat] Claude API ${res.status}`);
-      if (!retryable || attempt === 1) throw new Error(`claude_${res.status}`);
-    } catch (e) {
-      if (attempt === 1 || !(e.name === "AbortError" || /claude_(429|5\d\d)/.test(e.message) || e.name === "TypeError")) throw e;
-    } finally {
-      clearTimeout(timer);
-    }
-    await new Promise((r) => setTimeout(r, 800));
-  }
-  throw new Error("claude_unreachable");
-}
+
 
 // ---------- handlers ----------
 export async function POST(request) {
@@ -154,50 +103,10 @@ export async function POST(request) {
     transcript: messages.map((m) => `${m.role === "user" ? "Visitor" : "Assistant"}: ${m.content}`).join("\n"),
     state: sanitizeState(body.state),
   };
-  const state = ctx.state;
-  const actions = [];
-  let ended = false;
-
-  // Handed over to a human: the AI stays quiet; new messages go to the team.
-  if (state.mode === "handoff") {
-    const out = await handleHandoffMode(ctx, messages[messages.length - 1].content);
-    return json(200, { reply: out.reply, ended: false, handoff: true, cta: "whatsapp", actions: [{ type: "handoff_message", ok: out.forwarded }], state });
-  }
-
-  try {
-    for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-      const data = await callClaude(messages, state);
-      const content = Array.isArray(data.content) ? data.content : [];
-      const text = content.filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
-      const toolUses = content.filter((b) => b.type === "tool_use");
-
-      if (data.stop_reason !== "tool_use" || !toolUses.length || round === MAX_TOOL_ROUNDS) {
-        if (!text) throw new Error("empty_reply");
-        const fin = finishReply(text, { latest: body.messages[body.messages.length - 1].content, handedOver: state.mode === "handoff", humanRequested: actions.some((a) => a.type === "handoff") });
-        if (!fin.reply) throw new Error("empty_reply");
-        return json(200, { reply: fin.reply, cta: fin.cta, ended, handoff: state.mode === "handoff", actions, state });
-      }
-
-      messages.push({ role: "assistant", content });
-      const results = [];
-      for (const tu of toolUses) {
-        const out = await runTool(tu.name, tu.input, ctx);
-        if (out.action) actions.push(out.action);
-        if (out.ended) ended = true;
-        results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(out.result) });
-      }
-      messages.push({ role: "user", content: results });
-
-      if (ended) {
-        // Use the closing line the model already wrote, or a neutral default.
-        return json(200, { reply: text.replace(WA_MARKER, " ").trim() || "I'm going to end our chat here. If you need help later, you can contact Dleading on +44 742 725 9935.", ended, actions, state });
-      }
-    }
-  } catch (e) {
-    console.error(`[chat] failed: ${e.message}`);
-    return json(502, { error: "ai_error", reply: FALLBACK, actions, state });
-  }
-  return json(502, { error: "ai_error", reply: FALLBACK, actions });
+  const out = await runAgent({ messages, ctx, channel: "web" });
+  const { ok, ...rest } = out;
+  if (!ok) return json(502, { error: "ai_error", ...rest });
+  return json(200, rest);
 }
 
 export function GET() {
