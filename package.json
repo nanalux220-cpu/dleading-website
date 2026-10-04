@@ -11,7 +11,9 @@
     "type-check": "tsc --noEmit --project tsconfig.app.json",
     "kb": "node scripts/build-knowledge.mjs",
     "test:api": "node tests/api.test.mjs",
-    "test:live": "node tests/scenarios.live.mjs"
+    "test:live": "node tests/scenarios.live.mjs",
+    "test:whatsapp": "node tests/whatsapp.test.mjs",
+    "test": "node tests/api.test.mjs && node tests/whatsapp.test.mjs"
   },
   "dependencies": {
     "i18next": "^25.3.2",

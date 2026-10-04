@@ -71,11 +71,23 @@ function linkify(text: string): ReactNode[] {
   });
 }
 
-function WhatsAppAction() {
+/**
+ * "Chat on WhatsApp" after a handoff: opens WhatsApp to the same Dleading number with a
+ * pre-filled message carrying a reference + the page. The WhatsApp backend sees the reference
+ * and routes the customer straight to the team (no AI), and records which page they came from.
+ */
+const WHATSAPP_NUMBER = "447427259935";
+function handoffLink(conversationId: string, page: string) {
+  const ref = "H-" + conversationId.replace(/[^A-Za-z0-9]/g, "").slice(0, 6).toUpperCase();
+  const text = `Hi Dleading, I'd like to speak to someone. Ref ${ref} (page: ${page || "/"})`;
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+}
+
+function WhatsAppAction({ href }: { href: string }) {
   return (
     <div className="flex justify-start -mt-1">
       <a
-        href={WHATSAPP}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[14px] font-semibold text-white shadow-sm transition-opacity hover:opacity-90 active:scale-[0.98]"
@@ -88,7 +100,7 @@ function WhatsAppAction() {
   );
 }
 
-function Bubble({ msg }: { msg: Msg }) {
+function Bubble({ msg, waHref }: { msg: Msg; waHref: string }) {
   const mine = msg.role === "user";
   return (
     <>
@@ -103,7 +115,7 @@ function Bubble({ msg }: { msg: Msg }) {
         {mine ? msg.content : linkify(msg.content)}
       </div>
     </div>
-    {!mine && msg.cta === "whatsapp" && <WhatsAppAction />}
+    {!mine && msg.cta === "whatsapp" && <WhatsAppAction href={waHref} />}
     </>
   );
 }
@@ -287,8 +299,8 @@ export default function AIChatWidget() {
 
           {/* Messages */}
           <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3 bg-white" aria-live="polite">
-            <Bubble msg={{ role: "assistant", content: WELCOME }} />
-            {chat.messages.map((m, i) => <Bubble key={i} msg={m} />)}
+            <Bubble msg={{ role: "assistant", content: WELCOME }} waHref={WHATSAPP} />
+            {chat.messages.map((m, i) => <Bubble key={i} msg={m} waHref={handoffLink(chat.id, location.pathname)} />)}
 
             {showSuggestions && (
               <div className="flex flex-wrap gap-2 pt-1">
