@@ -10,7 +10,7 @@ What it does:
 Architecture:
 
 ```
-Customer's WhatsApp ─► Meta Cloud API ─► https://creativedleading.co.uk/api/whatsapp (Vercel)
+Customer's WhatsApp ─► Meta Cloud API ─► https://www.creativedleading.co.uk/api/whatsapp (Vercel)
                                               │  checks Meta's signature, ignores duplicates
                                               ├─► Upstash Redis (contacts, messages, AI memory, statuses)
                                               ├─► Claude (same receptionist AI as the website)
@@ -57,7 +57,7 @@ Then go to **Deployments** → latest **Production** → **⋯ → Redeploy** so
 ## Step 5 — connect Meta to the webhook
 1. **developers.facebook.com** → your app → **WhatsApp → Configuration** (in some layouts: **Use cases → Connect on WhatsApp → Customize → Configuration**).
 2. Under **Webhook** → **Edit**:
-   - **Callback URL:** `https://creativedleading.co.uk/api/whatsapp`
+   - **Callback URL:** `https://www.creativedleading.co.uk/api/whatsapp`
    - **Verify token:** exactly the same value as `WHATSAPP_VERIFY_TOKEN`
    - Click **Verify and save**. If it fails, the redeploy in Step 4 hasn't finished, or the token doesn't match exactly.
 3. Under **Webhook fields** → **Manage** → tick **messages** → **Done**. This one field carries both incoming messages and sent/delivered/read statuses.
@@ -65,7 +65,7 @@ Then go to **Deployments** → latest **Production** → **⋯ → Redeploy** so
 
 ## Step 6 — test from your phone (use a DIFFERENT phone from the business number)
 1. Send **Hi** to +44 7427 259935. You should get a short AI reply within a few seconds.
-2. Open **https://creativedleading.co.uk/admin.html** and sign in with `ADMIN_TOKEN`. Your number should appear under Contacts.
+2. Open **https://www.creativedleading.co.uk/admin.html** and sign in with `ADMIN_TOKEN`. Your number should appear under Contacts.
 3. Send **I need a website for my cleaning company**. The AI should ask your name (one question), then confirm the team will be in touch.
 4. Send **Can I speak to someone?**. The AI should ask your name if needed, then confirm a person will reply here, and then **stop replying**. In admin the contact shows **Needs human**. Reply from admin, then click **Hand back to AI**.
 5. Send something rude, e.g. **you're useless idiot**. You should get one short, polite warning. If you keep going, it closes the chat and stops replying for 24 hours.
