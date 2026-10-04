@@ -304,6 +304,13 @@ export default function AIChatWidget() {
               </div>
             )}
 
+            {!chat.ended && (chat.actions as { mode?: string } | null)?.mode === "handoff" && (
+              <div className="text-center text-[12px] text-gray-500 py-2">
+                Passed to the Dleading team. They'll contact you directly; anything you add here goes to them.{" "}
+                <button type="button" onClick={newConversation} className="underline cursor-pointer">Start a new conversation</button>
+              </div>
+            )}
+
             {chat.ended && (
               <div className="text-center text-[12px] text-gray-500 py-2">
                 This conversation has ended.{" "}

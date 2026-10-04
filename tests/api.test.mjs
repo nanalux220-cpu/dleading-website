@@ -125,15 +125,36 @@ check("two create_lead calls in one turn -> one send", log.n8n.length === before
 before = log.n8n.length;
 let h = (await turn("HUMAN please")).body;
 check("handoff recorded with id", h.state.handoffs.length === 1 && h.state.handoffs[0].id === C + "-h1" && log.n8n.at(-1).body.handoff_id === C + "-h1", h);
-r = await turn("HUMAN please again", h.state);
+// (handoff dedupe rules are tested with mode "ai", i.e. as if the AI were still answering)
+const ai = (st) => ({ ...st, mode: "ai" });
+r = await turn("HUMAN please again", ai(h.state));
 check("same-issue handoff not re-sent", log.n8n.length === before + 1 && r.body.reply.includes("already_requested") && r.body.state.handoffs.length === 1, r.body);
-let h2 = (await turn("HUMAN2", h.state)).body;
+let h2 = (await turn("HUMAN2", ai(h.state))).body;
 check("different issue -> new handoff h2", h2.state.handoffs.length === 2 && log.n8n.at(-1).body.handoff_id === C + "-h2", h2);
-let h3 = (await turn("HUMAN3", h2.state)).body;
-r = await turn("HUMAN4", h3.state);
+let h3 = (await turn("HUMAN3", ai(h2.state))).body;
+r = await turn("HUMAN4", ai(h3.state));
 check("handoff cap of 3 enforced", h3.state.handoffs.length === 3 && r.body.reply.includes("limit") && r.body.state.handoffs.length === 3, r.body);
 r = await turn("HUMANNOCONTACT", s1.state);
 check("handoff reuses contact details from the lead", r.body.state.handoffs?.length === 1 && log.n8n.at(-1).body.customer.email === "jo@example.com" && log.n8n.at(-1).body.lead_id === "lead_" + C, r.body);
+
+// ---- handoff mode: AI stops replying after a successful handoff ----
+check("successful handoff switches chat to handoff mode", h.state.mode === "handoff" && h.handoff === true, h);
+let claudeCalls = log.claude.length; before = log.n8n.length;
+r = await turn("ok also my budget is 2k", h.state);
+const fwd = log.n8n.at(-1);
+check("handoff mode: Claude NOT called", log.claude.length === claudeCalls, log.claude.length - claudeCalls);
+check("handoff mode: message forwarded with same handoff_id", log.n8n.length === before + 1 && fwd.path === "/handoff" && fwd.body.action === "message" && fwd.body.handoff_id === C + "-h1" && fwd.body.message === "ok also my budget is 2k", fwd.body);
+check("handoff mode: short fixed acknowledgement", r.body.reply.startsWith("Thanks, I've added that") && r.body.handoff === true && r.body.state.forwarded === 1, r.body);
+n8nMode = "fail";
+r = await turn("anyone there?", r.body.state);
+check("handoff mode + n8n down: honest reply with contact details, not counted", r.body.reply.includes("+44 742 725 9935") && r.body.state.forwarded === 1 && log.claude.length === claudeCalls, r.body);
+n8nMode = "ok";
+before = log.n8n.length;
+r = await turn("spam", { ...h.state, forwarded: 10 });
+check("handoff mode: forwarding capped at 10 messages", log.n8n.length === before && r.body.reply.includes("+44 742 725 9935"), r.body);
+r = await call({ conversationId: "conv_idem_0005", messages: [{ role: "user", content: "hi" }], state: { mode: "handoff", handoffs: [] } });
+check("forged handoff mode without a real handoff is ignored", r.body.state.mode === "ai" && r.body.reply === "Hello from stub", r.body);
+check("lead does not switch to handoff mode", s1.state.mode === "ai", s1.state);
 
 n8nMode = "fail";
 r = await call({ conversationId: "conv_idem_0003", messages: [{ role: "user", content: "LEAD x" }] });

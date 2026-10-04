@@ -14,7 +14,7 @@
  *   ABUSE_MAX_WARNINGS       optional, default 1
  */
 import { buildSystem } from "./_lib/prompt.js";
-import { TOOL_DEFS, runTool, sanitizeState, stateNotes } from "./_lib/tools.js";
+import { TOOL_DEFS, runTool, sanitizeState, stateNotes, handleHandoffMode } from "./_lib/tools.js";
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
 const API_BASE = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
@@ -83,7 +83,7 @@ async function callClaude(messages, state) {
   const system = buildSystem();
   const notes = stateNotes(state);
   if (notes.length) system.push({ type: "text", text: "# Conversation state\n" + notes.join("\n") });
-  const body = JSON.stringify({ model: MODEL, max_tokens: 700, system, tools: TOOL_DEFS, messages });
+  const body = JSON.stringify({ model: MODEL, max_tokens: 500, system, tools: TOOL_DEFS, messages });
   for (let attempt = 0; attempt < 2; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
@@ -143,6 +143,12 @@ export async function POST(request) {
   const actions = [];
   let ended = false;
 
+  // Handed over to a human: the AI stays quiet; new messages go to the team.
+  if (state.mode === "handoff") {
+    const out = await handleHandoffMode(ctx, messages[messages.length - 1].content);
+    return json(200, { reply: out.reply, ended: false, handoff: true, actions: [{ type: "handoff_message", ok: out.forwarded }], state });
+  }
+
   try {
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
       const data = await callClaude(messages, state);
@@ -152,7 +158,7 @@ export async function POST(request) {
 
       if (data.stop_reason !== "tool_use" || !toolUses.length || round === MAX_TOOL_ROUNDS) {
         if (!text) throw new Error("empty_reply");
-        return json(200, { reply: text, ended, actions, state });
+        return json(200, { reply: text, ended, handoff: state.mode === "handoff", actions, state });
       }
 
       messages.push({ role: "assistant", content });

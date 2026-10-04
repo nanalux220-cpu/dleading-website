@@ -38,6 +38,18 @@
               "type": "string"
             },
             {
+              "id": "abb79383-65a3-482e-88e3-b7be3178303e",
+              "name": "action",
+              "value": "={{ $json.body.action || 'create' }}",
+              "type": "string"
+            },
+            {
+              "id": "db4fb4b7-9cb5-4dcf-98d0-5aefb19ea294",
+              "name": "latest_message",
+              "value": "={{ $json.body.message || '' }}",
+              "type": "string"
+            },
+            {
               "id": "3f059e65-250d-48d7-953f-68fdba7ee306",
               "name": "lead_id",
               "value": "={{ $json.body.lead_id || '' }}",
@@ -145,9 +157,9 @@
       ],
       "parameters": {
         "sendTo": "info@creativedleading.co.uk",
-        "subject": "=Chat handoff: {{ $('Format').item.json.name || 'Website visitor' }} needs a human",
+        "subject": "={{ $('Format').item.json.action === 'message' ? 'New message on handoff' : 'Chat handoff' }}: {{ $('Format').item.json.name || 'Website visitor' }}",
         "emailType": "text",
-        "message": "=A website visitor asked to speak to the team.\n\nReason: {{ $('Format').item.json.reason }}\nName: {{ $('Format').item.json.name }}\nEmail: {{ $('Format').item.json.email }}\nPhone/WhatsApp: {{ $('Format').item.json.phone }}\nPreferred contact: {{ $('Format').item.json.preferred_contact }}\nPage: {{ $('Format').item.json.page }}\nTime: {{ $('Format').item.json.timestamp }}\n\n--- Conversation ---\n{{ $('Format').item.json.transcript }}",
+        "message": "={{ $('Format').item.json.action === 'message' ? 'The visitor sent another message after being handed over:\\n\\n' + $('Format').item.json.latest_message + '\\n\\n' : 'A website visitor asked to speak to the team.\\n\\n' }}\nReason: {{ $('Format').item.json.reason }}\nName: {{ $('Format').item.json.name }}\nEmail: {{ $('Format').item.json.email }}\nPhone/WhatsApp: {{ $('Format').item.json.phone }}\nPreferred contact: {{ $('Format').item.json.preferred_contact }}\nPage: {{ $('Format').item.json.page }}\nTime: {{ $('Format').item.json.timestamp }}\n\n--- Conversation ---\n{{ $('Format').item.json.transcript }}",
         "options": {
           "appendAttribution": false
         }
