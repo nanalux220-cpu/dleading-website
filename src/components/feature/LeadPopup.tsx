@@ -38,6 +38,18 @@ export default function LeadPopup() {
 
     let triggered = false;
 
+    // Don't interrupt visitors who are using the AI chat assistant.
+    try {
+      const chat = JSON.parse(localStorage.getItem("dleading_ai_chat_v1") || "null");
+      if (chat?.messages?.length) return;
+    } catch { /* ignore */ }
+    const onChatOpen = () => {
+      triggered = true;
+      clearAllTimers();
+      setPhase("hidden");
+    };
+    window.addEventListener("dleading-chat-open", onChatOpen);
+
     // Desktop: exit intent — mouse leaves top of viewport
     const handleMouseLeave = (e: MouseEvent) => {
       if (triggered) return;
@@ -58,6 +70,7 @@ export default function LeadPopup() {
 
     document.addEventListener("mouseleave", handleMouseLeave);
     return () => {
+      window.removeEventListener("dleading-chat-open", onChatOpen);
       document.removeEventListener("mouseleave", handleMouseLeave);
       clearAllTimers();
     };

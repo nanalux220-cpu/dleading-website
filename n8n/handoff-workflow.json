@@ -1,0 +1,208 @@
+{
+  "name": "Dleading \u2013 Website Chat Human Handoff",
+  "nodes": [
+    {
+      "id": "1bb078be-dc63-471b-b22b-a19955126a13",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "2183dc40-2975-47ac-97d9-43392973e93f",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dleading-handoff",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "a122c779-4558-4655-b17e-6ac5612d756b",
+      "name": "Format",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e6c37385-c66d-49e0-9d24-0892e39407f0",
+              "name": "timestamp",
+              "value": "={{ $json.body.timestamp || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "49a7a98a-b2da-485f-ae5d-447972bb0b6f",
+              "name": "reason",
+              "value": "={{ $json.body.reason || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "5bb9fc39-54bb-474c-99dd-2c76b32555db",
+              "name": "name",
+              "value": "={{ $json.body.customer.name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "0accda4d-1a6d-480c-ae5a-d5729457cecf",
+              "name": "email",
+              "value": "={{ $json.body.customer.email || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "312b89b0-27ed-476b-aa0e-57266e2af07a",
+              "name": "phone",
+              "value": "={{ $json.body.customer.phone || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "fe63550e-81bc-4052-8136-c737a7974f23",
+              "name": "preferred_contact",
+              "value": "={{ $json.body.customer.preferred_contact || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "dbdbfc0a-7b1f-489a-8c0e-0ae9892cef32",
+              "name": "page",
+              "value": "={{ $json.body.page || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "18d07881-7a8d-4022-8934-4a1ed9083af5",
+              "name": "conversation_id",
+              "value": "={{ $json.body.conversation_id || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "4e9db026-16f2-4563-8c05-01b8f9fccb1d",
+              "name": "transcript",
+              "value": "={{ $json.body.transcript || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a6ab4d88-b33b-456e-a6c8-545e9b9b5042",
+      "name": "Save to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Handoffs"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "dc14675d-10df-4a28-b0eb-24708f17dfdc",
+      "name": "Email the team",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "sendTo": "info@creativedleading.co.uk",
+        "subject": "=Chat handoff: {{ $('Format').item.json.name || 'Website visitor' }} needs a human",
+        "emailType": "text",
+        "message": "=A website visitor asked to speak to the team.\n\nReason: {{ $('Format').item.json.reason }}\nName: {{ $('Format').item.json.name }}\nEmail: {{ $('Format').item.json.email }}\nPhone/WhatsApp: {{ $('Format').item.json.phone }}\nPreferred contact: {{ $('Format').item.json.preferred_contact }}\nPage: {{ $('Format').item.json.page }}\nTime: {{ $('Format').item.json.timestamp }}\n\n--- Conversation ---\n{{ $('Format').item.json.transcript }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "0ae3f904-729c-41ac-9d82-fc10d9e39e7e",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\": true}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Email the team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email the team": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
