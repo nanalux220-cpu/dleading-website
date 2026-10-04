@@ -22,7 +22,7 @@ const MAX_HANDOFFS = 3;
 const idOk = (v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(v);
 
 export function sanitizeState(raw) {
-  const out = { lead: null, handoffs: [] };
+  const out = { lead: null, handoffs: [], mode: "ai", forwarded: 0 };
   if (!raw || typeof raw !== "object") return out;
   const l = raw.lead;
   if (l && typeof l === "object" && idOk(l.id)) {
@@ -41,7 +41,40 @@ export function sanitizeState(raw) {
       .filter((h) => h && idOk(h.id))
       .map((h) => ({ id: h.id, reason: clean(h.reason, 500), sentAt: clean(h.sentAt, 40) }));
   }
+  // "handoff" mode: a human handoff succeeded, so the AI stops replying for this chat.
+  if (raw.mode === "handoff" && out.handoffs.length) out.mode = "handoff";
+  out.forwarded = Math.min(Math.max(parseInt(raw.forwarded, 10) || 0, 0), 1000);
   return out;
+}
+
+const MAX_FORWARDED = 10;
+const HANDOFF_ACK = "Thanks, I've added that to your request. The team will reply to you directly, or tap below to chat with them on WhatsApp now.";
+const HANDOFF_ACK_FALLBACK = "Thanks. The Dleading team already has your request and will be in touch. If it's urgent, tap below to chat with them on WhatsApp, or email info@creativedleading.co.uk.";
+
+/**
+ * Called instead of the AI while the chat is handed over to a human.
+ * Forwards the visitor's new message to the handoff workflow (same handoff_id, so
+ * n8n updates the same row) and returns a short fixed acknowledgement.
+ */
+export async function handleHandoffMode(ctx, latestMessage) {
+  const st = ctx.state;
+  const h = st.handoffs[st.handoffs.length - 1];
+  if (st.forwarded >= MAX_FORWARDED) return { reply: HANDOFF_ACK_FALLBACK, forwarded: false };
+  const r = await sendToN8n("N8N_HANDOFF_WEBHOOK_URL", {
+    type: "handoff",
+    action: "message",
+    handoff_id: h.id,
+    timestamp: new Date().toISOString(),
+    conversation_id: ctx.conversationId,
+    lead_id: st.lead?.id || "",
+    page: ctx.page,
+    reason: h.reason,
+    message: clean(latestMessage, 2000),
+    customer: { name: st.lead?.data?.name || "", email: st.lead?.data?.email || "", phone: st.lead?.data?.phone || "", preferred_contact: st.lead?.data?.preferred_contact || "" },
+    transcript: ctx.transcript,
+  });
+  if (r.ok) st.forwarded += 1;
+  return { reply: r.ok ? HANDOFF_ACK : HANDOFF_ACK_FALLBACK, forwarded: r.ok };
 }
 
 /** Plain-English summary of completed actions, given to the AI each turn. */
@@ -168,7 +201,7 @@ async function sendToN8n(urlEnv, payload) {
   }
 }
 
-const FAIL_MSG = "Sending failed. Do NOT say the team was notified. Apologise, and ask the visitor to contact Dleading directly: WhatsApp/phone +44 742 725 9935 or info@creativedleading.co.uk.";
+const FAIL_MSG = "Sending failed. Do NOT say the team was notified. Apologise briefly and point the visitor to the WhatsApp button (end your reply with [[WHATSAPP]]) or info@creativedleading.co.uk.";
 
 /**
  * Executes one tool call. `ctx` = { conversationId, transcript, page, state } (state is mutated).
@@ -246,6 +279,7 @@ export async function runTool(name, input, ctx) {
       const handoff = { id: `${ctx.conversationId}-h${st.handoffs.length + 1}`.slice(0, 100), reason, sentAt: new Date().toISOString() };
       const r = await sendToN8n("N8N_HANDOFF_WEBHOOK_URL", {
         type: "handoff",
+        action: "create",
         handoff_id: handoff.id,
         timestamp: handoff.sentAt,
         conversation_id: ctx.conversationId,
@@ -258,7 +292,7 @@ export async function runTool(name, input, ctx) {
         },
         transcript: ctx.transcript,
       });
-      if (r.ok) st.handoffs.push(handoff);
+      if (r.ok) { st.handoffs.push(handoff); st.mode = "handoff"; }
       return { result: r.ok ? { ok: true } : { ok: false, error: FAIL_MSG }, action: { type: "handoff", ok: r.ok } };
     }
 

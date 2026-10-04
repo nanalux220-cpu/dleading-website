@@ -6,7 +6,7 @@ URLs are in Vercel, the chat still works — it just tells visitors to contact
 Dleading directly instead of claiming the team was notified.
 
 Both workflows: **Webhook (secret-header protected) → Format → Save to Google Sheet → Email the team → Respond OK**.
-**No duplicates:** each conversation has one `lead_id`. If the visitor adds or corrects details later, the website sends `action: "update"` with the same `lead_id`, and the Sheet row is updated in place (the email subject says UPDATED). Each distinct handoff gets its own `handoff_id`; repeats of the same issue aren't sent.
+**No duplicates:** each conversation has one `lead_id`. If the visitor adds or corrects details later, the website sends `action: "update"` with the same `lead_id`, and the Sheet row is updated in place (the email subject says UPDATED). Each distinct handoff gets its own `handoff_id`; repeats of the same issue aren't sent. After a handoff, the AI stops replying; any further visitor messages are sent with `action: "message"` and the same `handoff_id` (row updated, email says "New message on handoff").
 
 If any step fails, n8n returns an error, and the AI honestly tells the visitor it couldn't pass the details on.
 
@@ -18,7 +18,7 @@ Create a long random string (e.g. from a password manager, 32+ characters). You'
 ### 2. Make a Google Sheet
 Create a sheet with two tabs named exactly `Leads` and `Handoffs`.
 - `Leads` row 1 headers: `lead_id, action, version, timestamp, name, email, phone, business_name, needs, budget, preferred_contact, page, conversation_id, transcript`
-- `Handoffs` row 1 headers: `handoff_id, lead_id, timestamp, reason, name, email, phone, preferred_contact, page, conversation_id, transcript`
+- `Handoffs` row 1 headers: `handoff_id, action, latest_message, lead_id, timestamp, reason, name, email, phone, preferred_contact, page, conversation_id, transcript`
 
 ### 3. Import each workflow (repeat for `lead-workflow.json` and `handoff-workflow.json`)
 1. n8n → **Create workflow** → `…` menu → **Import from file** → choose the JSON.
