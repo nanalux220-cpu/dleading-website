@@ -103,6 +103,18 @@ let r = await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.
 check("Meta verification: correct token echoes challenge", r.status === 200 && (await r.text()) === "12345", r.status);
 r = await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=1"));
 check("Meta verification: wrong token rejected", r.status === 403, r.status);
+process.env.WHATSAPP_VERIFY_TOKEN = "  test-verify-token\n";
+r = await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=test-verify-token&hub.challenge=987"));
+check("Meta verification: stray spaces/newline in Vercel value tolerated", r.status === 200 && (await r.text()) === "987", r.status);
+process.env.WHATSAPP_VERIFY_TOKEN = "test-verify-token";
+r = await wa.GET(new Request("https://x/api/whatsapp"));
+const diag = await r.json(); const diagText = JSON.stringify(diag);
+check("setup check: shows which settings exist", r.status === 200 && diag.settings.WHATSAPP_VERIFY_TOKEN === "set (17 characters)" && diag.settings.DATABASE_UPSTASH === "connected", diag);
+check("setup check: never reveals secret values", !/test-verify-token|test-app-secret|test-wa-token|kv-token|test-key/.test(diagText), diagText);
+const vt = process.env.WHATSAPP_VERIFY_TOKEN; delete process.env.WHATSAPP_VERIFY_TOKEN;
+r = await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=&hub.challenge=1"));
+check("verification with no token configured -> 403 (never matches empty)", r.status === 403, r.status);
+process.env.WHATSAPP_VERIFY_TOKEN = vt;
 
 // ---- security ----
 r = await post(event([textMsg("Hi")]), sign("tampered"));

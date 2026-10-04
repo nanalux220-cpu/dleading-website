@@ -11,15 +11,16 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const GRAPH = process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com";
-const version = () => process.env.WHATSAPP_API_VERSION || "v21.0";
+const version = () => String(process.env.WHATSAPP_API_VERSION || "").trim() || "v21.0";
 
+const env = (k) => String(process.env[k] || "").trim();
 export function whatsappConfigured() {
-  return !!(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
+  return !!(env("WHATSAPP_ACCESS_TOKEN") && env("WHATSAPP_PHONE_NUMBER_ID"));
 }
 
 /** Verify Meta's X-Hub-Signature-256 header against the raw request body. */
 export function validSignature(rawBody, header) {
-  const secret = process.env.WHATSAPP_APP_SECRET;
+  const secret = String(process.env.WHATSAPP_APP_SECRET || "").trim();
   if (!secret || typeof header !== "string" || !header.startsWith("sha256=")) return false;
   const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
   const given = header.slice(7);
@@ -41,9 +42,9 @@ async function graph(payload) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
   try {
-    const res = await fetch(`${GRAPH}/${version()}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+    const res = await fetch(`${GRAPH}/${version()}/${env("WHATSAPP_PHONE_NUMBER_ID")}/messages`, {
       method: "POST",
-      headers: { authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${env("WHATSAPP_ACCESS_TOKEN")}`, "content-type": "application/json" },
       body: JSON.stringify({ messaging_product: "whatsapp", ...payload }),
       signal: controller.signal,
     });
