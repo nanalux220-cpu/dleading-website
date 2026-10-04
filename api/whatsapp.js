@@ -79,6 +79,9 @@ async function liveChecks() {
     const key = "wa:healthcheck";
     await cmd("SET", key, String(Date.now()), "EX", 60);
     out.database = (await cmd("GET", key)) ? "OK: read/write works" : "FAILED: could not read back";
+    const last = await getJSON("wa:last_webhook");
+    out.last_webhook_from_meta = last ? `${last.at} — ${last.result}` : "none yet (Meta hasn't sent a message event to this URL)";
+    out.contacts_saved = Number(await cmd("SCARD", "wa:contacts")) || 0;
   } catch (e) { out.database = `FAILED: ${e.message}`; }
   try {
     const id = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
@@ -100,6 +103,7 @@ export async function POST(request) {
   const raw = await request.text();
   if (!validSignature(raw, request.headers.get("x-hub-signature-256"))) {
     console.warn("[whatsapp] rejected: bad or missing signature");
+    if (storeConfigured()) await setJSON("wa:last_webhook", { at: now(), result: "REJECTED: signature did not match WHATSAPP_APP_SECRET" }, 30 * 86400).catch(() => {});
     return new Response("Invalid signature", { status: 401 });
   }
   if (!storeConfigured()) {
@@ -136,6 +140,7 @@ export async function POST(request) {
       }
     }
   }
+  await setJSON("wa:last_webhook", { at: now(), result: `OK: ${summary.messages} new message(s), ${summary.statuses} status update(s), ${summary.duplicates} duplicate(s), ${summary.errors} error(s)` }, 30 * 86400).catch(() => {});
   return json(200, { ok: true, ...summary });
 }
 
