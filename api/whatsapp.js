@@ -46,7 +46,8 @@ export function GET(request) {
     const vt = envTrim("WHATSAPP_VERIFY_TOKEN");
     return json(200, {
       endpoint: "ok",
-      callback_url: "https://creativedleading.co.uk/api/whatsapp",
+      callback_url: `https://${request.headers.get("x-forwarded-host") || request.headers.get("host") || new URL(request.url).host}/api/whatsapp`,
+      note: "Use callback_url exactly as shown in Meta (Meta does not follow redirects).",
       settings: {
         WHATSAPP_VERIFY_TOKEN: vt ? `set (${vt.length} characters)` : "MISSING",
         WHATSAPP_APP_SECRET: envTrim("WHATSAPP_APP_SECRET") ? "set" : "MISSING",
