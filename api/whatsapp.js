@@ -14,7 +14,7 @@
  *   6. otherwise the SAME receptionist AI as the website, with this customer's history
  * Delivery statuses (sent / delivered / read / failed) are stored per message id.
  */
-import { validSignature, sendText, markRead, normaliseNumber } from "./_lib/whatsapp.js";
+import { validSignature, sendText, markRead, normaliseNumber, whatsappEnv } from "./_lib/whatsapp.js";
 import { cmd, pipeline, getJSON, setJSON, claimOnce, storeConfigured } from "./_lib/store.js";
 import { runAgent } from "./_lib/agent.js";
 import { sanitizeState, notifyN8n } from "./_lib/tools.js";
@@ -52,7 +52,7 @@ export function GET(request) {
         WHATSAPP_VERIFY_TOKEN: vt ? `set (${vt.length} characters)` : "MISSING",
         WHATSAPP_APP_SECRET: envTrim("WHATSAPP_APP_SECRET") ? "set" : "MISSING",
         WHATSAPP_ACCESS_TOKEN: envTrim("WHATSAPP_ACCESS_TOKEN") ? "set" : "MISSING",
-        WHATSAPP_PHONE_NUMBER_ID: envTrim("WHATSAPP_PHONE_NUMBER_ID") ? "set" : "MISSING",
+        WHATSAPP_PHONE_NUMBER_ID: envTrim("WHATSAPP_PHONE_NUMBER_ID") ? "set" : `using default ${whatsappEnv("WHATSAPP_PHONE_NUMBER_ID")}`,
         DATABASE_UPSTASH: storeConfigured() ? "connected" : "MISSING",
         ANTHROPIC_API_KEY: envTrim("ANTHROPIC_API_KEY") ? "set" : "MISSING",
       },
@@ -90,7 +90,7 @@ export async function POST(request) {
       if (change.field !== "messages") continue;
       const v = change.value || {};
       // Only handle events for OUR number.
-      const ourId = envTrim("WHATSAPP_PHONE_NUMBER_ID");
+      const ourId = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
       if (ourId && v.metadata?.phone_number_id && v.metadata.phone_number_id !== ourId) continue;
 
       for (const s of v.statuses || []) {
