@@ -37,14 +37,16 @@ const now = () => new Date().toISOString();
 // ---------- Meta verification ----------
 const envTrim = (k) => String(process.env[k] || "").trim();
 
-export function GET(request) {
+export async function GET(request) {
   const p = new URL(request.url).searchParams;
   const mode = p.get("hub.mode");
 
   // Plain visit (no hub.* params): safe setup check. Shows ONLY whether settings exist, never their values.
   if (!mode && !p.has("hub.verify_token")) {
     const vt = envTrim("WHATSAPP_VERIFY_TOKEN");
+    const live = p.get("live") === "1" ? await liveChecks() : undefined;
     return json(200, {
+      ...(live ? { live_checks: live } : { tip: "Add ?live=1 to test the database and the WhatsApp token for real." }),
       endpoint: "ok",
       callback_url: `https://${request.headers.get("x-forwarded-host") || request.headers.get("host") || new URL(request.url).host}/api/whatsapp`,
       note: "Use callback_url exactly as shown in Meta (Meta does not follow redirects).",
@@ -66,6 +68,31 @@ export function GET(request) {
   }
   console.warn(`[whatsapp] verification failed: ${!expected ? "WHATSAPP_VERIFY_TOKEN not set in Vercel" : mode !== "subscribe" ? "hub.mode is not subscribe" : `token mismatch (received ${given.length} chars, expected ${expected.length})`}`);
   return new Response("Forbidden", { status: 403, headers: { "cache-control": "no-store" } });
+}
+
+// Real connectivity checks (no secret values returned). Throttled to protect Meta/Upstash quotas.
+let lastLive = { at: 0, result: null };
+async function liveChecks() {
+  if (Date.now() - lastLive.at < 15000 && lastLive.result) return { ...lastLive.result, cached: true };
+  const out = {};
+  try {
+    const key = "wa:healthcheck";
+    await cmd("SET", key, String(Date.now()), "EX", 60);
+    out.database = (await cmd("GET", key)) ? "OK: read/write works" : "FAILED: could not read back";
+  } catch (e) { out.database = `FAILED: ${e.message}`; }
+  try {
+    const id = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
+    const ver = envTrim("WHATSAPP_API_VERSION") || "v21.0";
+    const res = await fetch(`${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}/${id}?fields=display_phone_number,verified_name,quality_rating`, {
+      headers: { authorization: `Bearer ${envTrim("WHATSAPP_ACCESS_TOKEN")}` },
+    });
+    const d = await res.json().catch(() => ({}));
+    out.whatsapp_token = res.ok
+      ? `OK: Meta accepted the token for ${d.display_phone_number || "?"} (${d.verified_name || "?"})`
+      : `FAILED: Meta error ${d?.error?.code ?? res.status}: ${String(d?.error?.message || "").slice(0, 140)}`;
+  } catch (e) { out.whatsapp_token = `FAILED: ${e.name}`; }
+  lastLive = { at: Date.now(), result: out };
+  return out;
 }
 
 // ---------- incoming events ----------
