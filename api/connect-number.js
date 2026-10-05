@@ -60,6 +60,9 @@ export async function POST(request) {
   if (storeConfigured()) { try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* env */ } }
   const phone = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
 
+  // Coexistence: the number stays on the WhatsApp Business App. Registering, verifying or
+  // requesting codes here would take it off the app, so only the read-only status check remains.
+  if (b.step !== "status") return json(410, { ok: false, error: "Disabled. Use /connect-whatsapp.html (Coexistence, keeps the WhatsApp Business App)." });
   switch (b.step) {
     case "status": {
       const r = await graph(`${phone}?fields=display_phone_number,verified_name,status,code_verification_status,platform_type`);

@@ -4,7 +4,7 @@
 import http from "node:http";
 import { createHmac } from "node:crypto";
 
-const log = { claude: [], graph: [], n8n: [] };
+const log = { claude: [], graph: [], n8n: [], es: [] };
 let graphMode = "ok", claudeMode = "ok", wabaSubscribed = false;
 const listen = (srv, port) => new Promise((r) => srv.listen(port, r));
 const readBody = async (req) => { let b = ""; for await (const c of req) b += c; return b; };
@@ -38,7 +38,11 @@ const upstash = http.createServer(async (req, res) => {
 // ---- fake Meta Graph ----
 let wamidN = 0;
 const graph = http.createServer(async (req, res) => {
-  if (req.url.includes("debug_token")) return send(res, { data: { granular_scopes: [{ scope: "whatsapp_business_management", target_ids: ["999000"] }] } });
+  if (req.url.includes("/oauth/access_token")) { log.es.push(req.url); return req.url.includes("code=GOODCODE") ? send(res, { access_token: "biz-token-from-es-0123456789" }) : send(res, { error: { code: 100, message: "Invalid code" } }, 400); }
+  if (req.url.includes("/smb_app_data")) { log.es.push(req.url + " " + (req.headers.authorization || "")); return send(res, { success: true }); }
+  if (req.url.includes("/777000/subscribed_apps")) { log.es.push("subscribe " + (req.headers.authorization || "")); return send(res, { success: true }); }
+  if (req.url.match(/\/(register|deregister|request_code|verify_code)/)) { log.es.push("FORBIDDEN " + req.url); return send(res, { success: true }); }
+    if (req.url.includes("debug_token")) return send(res, { data: { granular_scopes: [{ scope: "whatsapp_business_management", target_ids: ["999000"] }] } });
   if (req.url.includes("/999000/phone_numbers")) return send(res, { data: [{ id: "1385944931264059", display_phone_number: "+44 7427 259935" }] });
   if (req.url.includes("/phone_numbers")) return send(res, { error: { code: 100, message: "Unsupported get request" } }, 400);
   if (req.url.includes("/999000/subscribed_apps")) { if (req.method === "POST") { wabaSubscribed = true; return send(res, { success: true }); } return send(res, { data: wabaSubscribed ? [{ whatsapp_business_api_data: { name: "Dleadind Creative" } }] : [] }); }
@@ -259,6 +263,37 @@ check("image/voice message -> asks them to type", sent().at(-1).body.text.body.i
 const c5 = log.claude.length;
 await post(event([textMsg("Hi", "wamid.OTHER1")], [], "999999"));
 check("events for another phone number id ignored", log.claude.length === c5, null);
+
+// ---- Embedded Signup (Coexistence) ----
+const es = await import(new URL("../api/embedded-signup.js", import.meta.url).href);
+process.env.META_ES_CONFIG_ID = "cfg123";
+let er = await es.GET(); const ecfg = await er.json();
+check("ES config: app id + config id exposed (no secrets)", ecfg.appId === "1565214158224377" && ecfg.configId === "cfg123" && !JSON.stringify(ecfg).includes("secret"), ecfg);
+const esPost = (b) => es.POST(new Request("https://x/api/embedded-signup", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "5.5.5.5" }, body: JSON.stringify(b) }));
+er = await esPost({ key: "wrong", code: "GOODCODE", waba_id: "777000", phone_number_id: "888000" });
+check("ES: wrong key rejected", er.status === 401 && log.es.length === 0, er.status);
+er = await esPost({ key: "test-verify-token", code: "BAD", waba_id: "777000", phone_number_id: "888000" });
+check("ES: bad code -> clear error, nothing stored", er.status === 502 && !kv.has("wa:business_token"), await er.json());
+er = await esPost({ key: "test-verify-token", code: "GOODCODE", waba_id: "777000", phone_number_id: "888000" });
+const ed = await er.json();
+check("ES: code exchanged with app secret server-side", log.es.some((u) => u.includes("client_secret=test-app-secret") && u.includes("code=GOODCODE")), log.es);
+check("ES: WABA subscribed + coexistence sync (contacts + history) with business token", log.es.includes("subscribe Bearer biz-token-from-es-0123456789") && log.es.some((u) => u.includes("/888000/smb_app_data") && u.includes("biz-token")), log.es);
+check("ES: NEVER calls register/deregister/request_code/verify_code", !log.es.some((u) => u.startsWith("FORBIDDEN")), log.es);
+check("ES: number + token stored as active", ed.ok && kv.get("wa:active_phone_id") === "888000" && kv.get("wa:business_token") === "biz-token-from-es-0123456789", ed);
+check("ES: response never echoes the token", !JSON.stringify(ed).includes("biz-token"), ed);
+const g0 = log.graph.length;
+await post(event([textMsg("Hi after coexistence", "wamid.COEX1", "447700900555")], [], "888000"));
+const sendCall = log.graph.slice(g0).find((g) => g.body.type === "text");
+check("after ES: replies sent from the new phone id with the business token", sendCall && sendCall.url === "/v21.0/888000/messages" && sendCall.auth === "Bearer biz-token-from-es-0123456789", sendCall);
+// echo: owner replies from phone app -> AI pauses for that chat
+await post({ object: "whatsapp_business_account", entry: [{ id: "777000", changes: [{ field: "smb_message_echoes", value: { metadata: { phone_number_id: "888000" }, message_echoes: [{ from: "447427259935", to: "447700900555", id: "wamid.ECHO1", timestamp: String(Math.floor(Date.now() / 1000)), type: "text", text: { body: "Hi, Tom here from Dleading" } }] } }] }] });
+check("echo from phone app saved as human message", JSON.parse(kv.get("wa:msgs:447700900555")[0]).kind === "human_app", kv.get("wa:msgs:447700900555")[0]);
+const c6 = log.claude.length;
+await post(event([textMsg("thanks Tom", "wamid.COEX2", "447700900555")], [], "888000"));
+check("after owner replies from phone, AI stays quiet for that chat", log.claude.length === c6, null);
+const cn = await import(new URL("../api/connect-number.js", import.meta.url).href);
+const cr = await cn.POST(new Request("https://x/api/connect-number", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "6.6.6.6" }, body: JSON.stringify({ step: "register", key: "test-verify-token", pin: "123456" }) }));
+check("old register flow disabled (410)", cr.status === 410 && !log.es.some((u) => u.includes("/register")), cr.status);
 
 console.log(fails ? `\n${fails} FAILED` : "\nALL PASSED");
 [upstash, graph, claude, n8n].forEach((s) => s.close());

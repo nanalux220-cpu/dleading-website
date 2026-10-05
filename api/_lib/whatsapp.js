@@ -19,7 +19,10 @@ const DEFAULTS = { WHATSAPP_PHONE_NUMBER_ID: "1385944931264059" };
 // overrides the env var, so switching numbers needs no Vercel change.
 let activePhone = "";
 export const setActivePhone = (id) => { activePhone = /^\d{6,20}$/.test(String(id || "")) ? String(id) : ""; };
-const env = (k) => (k === "WHATSAPP_PHONE_NUMBER_ID" && activePhone) || String(process.env[k] || "").trim() || DEFAULTS[k] || "";
+// Business token from Embedded Signup (Coexistence), stored server-side in Redis.
+let activeToken = "";
+export const setActiveToken = (t) => { activeToken = typeof t === "string" && t.length > 20 ? t : ""; };
+const env = (k) => (k === "WHATSAPP_PHONE_NUMBER_ID" && activePhone) || (k === "WHATSAPP_ACCESS_TOKEN" && activeToken) || String(process.env[k] || "").trim() || DEFAULTS[k] || "";
 export const whatsappEnv = env;
 export function whatsappConfigured() {
   return !!(env("WHATSAPP_ACCESS_TOKEN") && env("WHATSAPP_PHONE_NUMBER_ID"));

@@ -17,6 +17,9 @@
     },
     "api/connect-number.js": {
       "maxDuration": 30
+    },
+    "api/embedded-signup.js": {
+      "maxDuration": 30
     }
   },
   "headers": [
@@ -35,6 +38,19 @@
     },
     {
       "source": "/connect-number.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/connect-whatsapp.html",
       "headers": [
         {
           "key": "X-Robots-Tag",
