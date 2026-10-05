@@ -11,14 +11,7 @@ import { timingSafeEqual } from "node:crypto";
 import { whatsappEnv, setActivePhone } from "./_lib/whatsapp.js";
 import { cmd, storeConfigured } from "./_lib/store.js";
 
-// API-type WABA (the "Dleading Creative Design Ltd" WABA is a WhatsApp Business *app* account,
-// which can't hold Cloud API numbers).
-const WABA_ID = "1090927923795967";
-// Numbers the owner has asked to connect (adding them is harmless; codes go to that phone).
-// The stuck, never-registered entry the owner approved removing (frees a number slot).
-const REMOVABLE = { "1239342529252777": "+44 7427 259935" };
-const ALLOWED_NEW = { "447383827715": { cc: "44", phone_number: "7383827715" } };
-
+// Only the owner's own number (+44 7427 259935) is handled here.
 const env = (k) => String(process.env[k] || "").trim();
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
@@ -56,7 +49,7 @@ export async function POST(request) {
   try { b = await request.json(); } catch { return json(400, { ok: false, error: "invalid json" }); }
   // "status" and "request_code" are harmless (the code only goes to the business phone), so they
   // don't need the key; request_code is capped. Verifying and registering still require the key.
-  const open = b.step === "status" || b.step === "request_code" || b.step === "add_number" || b.step === "remove_offline";
+  const open = b.step === "status" || b.step === "request_code";
   if (!open && !keyOk(b.key)) return json(401, { ok: false, error: "Wrong key. Use the WHATSAPP_VERIFY_TOKEN value from Vercel." });
   if (b.step === "request_code") {
     sent = sent.filter((t) => Date.now() - t < 60 * 60e3);
@@ -65,33 +58,9 @@ export async function POST(request) {
   }
   if (!env("WHATSAPP_ACCESS_TOKEN")) return json(503, { ok: false, error: "WHATSAPP_ACCESS_TOKEN not set in Vercel" });
   if (storeConfigured()) { try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* env */ } }
-  // Target phone: an explicit phone_id that belongs to our WABA, else the active one.
-  let phone = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
-  if (b.phone_id) {
-    const list = await graph(`${WABA_ID}/phone_numbers?fields=id,display_phone_number`);
-    if (!list.ok) return json(502, list);
-    if (!(list.data?.data || []).some((n) => String(n.id) === String(b.phone_id))) return json(400, { ok: false, error: "That phone ID isn't in the Dleading WhatsApp account." });
-    phone = String(b.phone_id);
-  }
+  const phone = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
 
   switch (b.step) {
-    case "remove_offline": {
-      const id = Object.keys(REMOVABLE)[0];
-      const st = await graph(`${id}?fields=status,code_verification_status`);
-      if (st.ok && st.data?.status === "CONNECTED") return json(400, { ok: false, error: "That number is connected; not removing it." });
-      const r = await graph(id, "DELETE");
-      return json(r.ok ? 200 : 502, r.ok ? { ok: true, message: `Removed the offline entry for ${REMOVABLE[id]} from Meta (phone app unaffected).`, data: r.data } : r);
-    }
-    case "add_number": {
-      const digits = String(b.number || "").replace(/\D/g, "").replace(/^0/, "44");
-      const n = ALLOWED_NEW[digits];
-      if (!n) return json(400, { ok: false, error: "Only the agreed new number can be added here." });
-      const list = await graph(`${WABA_ID}/phone_numbers?fields=id,display_phone_number,status,code_verification_status`);
-      const existing = (list.data?.data || []).find((x) => String(x.display_phone_number || "").replace(/\D/g, "") === digits);
-      if (existing) return json(200, { ok: true, message: "Number already added.", data: existing });
-      const r = await graph(`${WABA_ID}/phone_numbers`, "POST", { cc: n.cc, phone_number: n.phone_number, verified_name: "Dleading Creative Design Ltd" });
-      return json(r.ok ? 200 : 502, r.ok ? { ok: true, message: "Number added.", data: r.data } : r);
-    }
     case "status": {
       const r = await graph(`${phone}?fields=display_phone_number,verified_name,status,code_verification_status,platform_type`);
       return json(r.ok ? 200 : 502, r);
