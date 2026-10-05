@@ -12,6 +12,7 @@ body{margin:0;font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;c
 main{max-width:560px;margin:0 auto;padding:24px 16px 48px}
 h1{font-size:22px;margin:0 0 4px}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}
+.warn{background:#fff7ed;border-color:#fed7aa}
 label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 input,select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
 button{margin-top:12px;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;color:#fff;background:linear-gradient(135deg,#F69D01,#F65901);cursor:pointer}
@@ -24,58 +25,55 @@ h2{font-size:17px;margin:0}
 </head>
 <body>
 <main>
-<h1>Connect the AI WhatsApp number</h1>
-<p style="color:var(--mute);margin:0">Number: <strong id="numLabel">+44 7383 827715</strong>. It must not be on any WhatsApp app.</p>
+<h1>Connect your WhatsApp number</h1>
+<p style="color:var(--mute);margin:0">One-time setup so +44 7427 259935 can receive messages through the AI.</p>
+
+<div class="card warn"><strong>Before you start:</strong> registering the number on the WhatsApp Cloud API usually disconnects it from the WhatsApp / WhatsApp Business app on your phone. After this, reply to customers from <a href="/admin.html">/admin.html</a>.</div>
 
 <div class="card">
-  <h2><span class="n">1</span>Add number &amp; send code</h2>
+  <label for="key">Setup key (your WHATSAPP_VERIFY_TOKEN from Vercel). Only needed for steps 2 and 3.</label>
+  <input id="key" type="password" autocomplete="off">
+  <button data-step="status">Check number status</button>
+  <div class="out" id="o-status"></div>
+</div>
+
+<div class="card">
+  <h2><span class="n">1</span>Send a verification code</h2>
   <label for="method">Send code by</label>
   <select id="method"><option value="SMS">SMS</option><option value="VOICE">Voice call</option></select>
-  <button data-step="add_and_send">Add number &amp; send code</button>
-  <div class="out" id="o-add_and_send"></div>
+  <button data-step="request_code">Send code to +44 7427 259935</button>
+  <div class="out" id="o-request_code"></div>
 </div>
 
 <div class="card">
   <h2><span class="n">2</span>Enter the code</h2>
-  <label for="key">Setup key (WHATSAPP_VERIFY_TOKEN from Vercel)</label>
-  <input id="key" type="password" autocomplete="off">
   <label for="code">6-digit code you received</label>
-  <input id="code" inputmode="numeric" maxlength="7" autocomplete="one-time-code">
+  <input id="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
   <button data-step="verify_code">Verify code</button>
   <div class="out" id="o-verify_code"></div>
 </div>
 
 <div class="card">
   <h2><span class="n">3</span>Register with a PIN</h2>
-  <label for="pin">Choose a 6-digit PIN and keep it safe</label>
+  <label for="pin">Choose a 6-digit PIN (two-step verification). Keep it safe. If this number already has a WhatsApp two-step PIN, use that one.</label>
   <input id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off">
   <button data-step="register">Register number</button>
   <div class="out" id="o-register"></div>
 </div>
 </main>
 <script>
-let phoneId = "";
-try { phoneId = sessionStorage.getItem("dl_new_phone") || ""; } catch {}
-const call = (body) => fetch("/api/connect-number", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
 document.querySelectorAll("button[data-step]").forEach((b) => b.onclick = async () => {
   const step = b.dataset.step, out = document.getElementById("o-" + step);
-  if (step === "register" && !confirm("Register +44 7383 827715 for the AI now?")) return;
+  if (step === "register" && !confirm("Register +44 7427 259935 on the WhatsApp Cloud API now?")) return;
   b.disabled = true; out.className = "out"; out.textContent = "Working…";
   try {
-    let d;
-    if (step === "add_and_send") {
-      const a = await call({ step: "add_number", number: "07383827715" });
-      if (!a.ok) throw new Error(a.error);
-      phoneId = a.data?.id || phoneId;
-      try { sessionStorage.setItem("dl_new_phone", phoneId); } catch {}
-      d = await call({ step: "request_code", phone_id: phoneId, method: document.getElementById("method").value });
-    } else {
-      d = await call({ step, phone_id: phoneId, key: document.getElementById("key").value,
-        code: document.getElementById("code").value, pin: document.getElementById("pin").value });
-    }
+    const res = await fetch("/api/connect-number", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key: document.getElementById("key").value, step, method: document.getElementById("method").value,
+        code: document.getElementById("code").value, pin: document.getElementById("pin").value }) });
+    const d = await res.json();
     out.className = "out " + (d.ok ? "ok" : "err");
-    out.textContent = d.ok ? (d.message || "Done") : d.error;
-  } catch (e) { out.className = "out err"; out.textContent = e.message; }
+    out.textContent = d.ok ? (d.message || JSON.stringify(d.data, null, 2)) : d.error;
+  } catch (e) { out.className = "out err"; out.textContent = "Network error: " + e.message; }
   b.disabled = false;
 });
 </script>
