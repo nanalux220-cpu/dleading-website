@@ -94,6 +94,7 @@ async function findWabaIds() {
   const configured = envTrim("WHATSAPP_BUSINESS_ACCOUNT_ID");
   if (configured) ids.add(configured);
   ids.add("1672795140622691"); // "Dleading Creative Design Ltd" WABA (owns +44 7427 259935)
+  ids.add("1090927923795967"); // API WABA (AI number +44 7383 827715)
   // Token debug tells us which WABAs this token can manage.
   const dbg = await graphGet(`debug_token?input_token=${encodeURIComponent(envTrim("WHATSAPP_ACCESS_TOKEN"))}`);
   for (const g of dbg.data?.data?.granular_scopes || []) {

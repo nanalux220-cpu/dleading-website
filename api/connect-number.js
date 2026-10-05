@@ -11,7 +11,9 @@ import { timingSafeEqual } from "node:crypto";
 import { whatsappEnv, setActivePhone } from "./_lib/whatsapp.js";
 import { cmd, storeConfigured } from "./_lib/store.js";
 
-const WABA_ID = "1672795140622691"; // "Dleading Creative Design Ltd"
+// API-type WABA (the "Dleading Creative Design Ltd" WABA is a WhatsApp Business *app* account,
+// which can't hold Cloud API numbers).
+const WABA_ID = "1090927923795967";
 // Numbers the owner has asked to connect (adding them is harmless; codes go to that phone).
 // The stuck, never-registered entry the owner approved removing (frees a number slot).
 const REMOVABLE = { "1239342529252777": "+44 7427 259935" };
