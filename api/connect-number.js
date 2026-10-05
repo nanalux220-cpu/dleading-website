@@ -13,6 +13,8 @@ import { cmd, storeConfigured } from "./_lib/store.js";
 
 const WABA_ID = "1672795140622691"; // "Dleading Creative Design Ltd"
 // Numbers the owner has asked to connect (adding them is harmless; codes go to that phone).
+// The stuck, never-registered entry the owner approved removing (frees a number slot).
+const REMOVABLE = { "1239342529252777": "+44 7427 259935" };
 const ALLOWED_NEW = { "447383827715": { cc: "44", phone_number: "7383827715" } };
 
 const env = (k) => String(process.env[k] || "").trim();
@@ -52,7 +54,7 @@ export async function POST(request) {
   try { b = await request.json(); } catch { return json(400, { ok: false, error: "invalid json" }); }
   // "status" and "request_code" are harmless (the code only goes to the business phone), so they
   // don't need the key; request_code is capped. Verifying and registering still require the key.
-  const open = b.step === "status" || b.step === "request_code" || b.step === "add_number";
+  const open = b.step === "status" || b.step === "request_code" || b.step === "add_number" || b.step === "remove_offline";
   if (!open && !keyOk(b.key)) return json(401, { ok: false, error: "Wrong key. Use the WHATSAPP_VERIFY_TOKEN value from Vercel." });
   if (b.step === "request_code") {
     sent = sent.filter((t) => Date.now() - t < 60 * 60e3);
@@ -71,6 +73,13 @@ export async function POST(request) {
   }
 
   switch (b.step) {
+    case "remove_offline": {
+      const id = Object.keys(REMOVABLE)[0];
+      const st = await graph(`${id}?fields=status,code_verification_status`);
+      if (st.ok && st.data?.status === "CONNECTED") return json(400, { ok: false, error: "That number is connected; not removing it." });
+      const r = await graph(id, "DELETE");
+      return json(r.ok ? 200 : 502, r.ok ? { ok: true, message: `Removed the offline entry for ${REMOVABLE[id]} from Meta (phone app unaffected).`, data: r.data } : r);
+    }
     case "add_number": {
       const digits = String(b.number || "").replace(/\D/g, "").replace(/^0/, "44");
       const n = ALLOWED_NEW[digits];
