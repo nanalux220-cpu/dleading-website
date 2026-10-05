@@ -266,7 +266,7 @@ check("events for another phone number id ignored", log.claude.length === c5, nu
 
 // ---- Embedded Signup (Coexistence) ----
 const es = await import(new URL("../api/embedded-signup.js", import.meta.url).href);
-process.env.META_ES_CONFIG_ID = "cfg123";
+process.env.META_ES_CONFIG_ID = "cfg123"; // env overrides the built-in default
 let er = await es.GET(); const ecfg = await er.json();
 check("ES config: app id + config id exposed (no secrets)", ecfg.appId === "1565214158224377" && ecfg.configId === "cfg123" && !JSON.stringify(ecfg).includes("secret"), ecfg);
 const esPost = (b) => es.POST(new Request("https://x/api/embedded-signup", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "5.5.5.5" }, body: JSON.stringify(b) }));
