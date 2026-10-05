@@ -16,7 +16,7 @@
  */
 import { timingSafeEqual } from "node:crypto";
 import { cmd, pipeline, getJSON, setJSON, storeConfigured } from "./_lib/store.js";
-import { sendTemplate, normaliseNumber, whatsappConfigured } from "./_lib/whatsapp.js";
+import { sendTemplate, normaliseNumber, whatsappConfigured, setActivePhone } from "./_lib/whatsapp.js";
 import { sanitizeState } from "./_lib/tools.js";
 import { reply } from "./whatsapp.js";
 
@@ -38,7 +38,7 @@ function guard(request) {
   if (!authorised(request)) { failed.set(ip, { n: f.n + 1, t: Date.now() }); return json(401, { error: "unauthorised" }); }
   failed.delete(ip);
   if (!storeConfigured()) return json(503, { error: "store_not_configured" });
-  return null;
+  return "ok";
 }
 
 const csvCell = (v) => {
@@ -65,7 +65,8 @@ async function messagesFor(num, limit = 200) {
 }
 
 export async function GET(request) {
-  const blocked = guard(request); if (blocked) return blocked;
+  const blocked = guard(request); if (blocked !== "ok") return blocked;
+  try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* env */ }
   const p = new URL(request.url).searchParams;
   const action = p.get("action");
 
@@ -124,7 +125,8 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const blocked = guard(request); if (blocked) return blocked;
+  const blocked = guard(request); if (blocked !== "ok") return blocked;
+  try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* env */ }
   let b;
   try { b = await request.json(); } catch { return json(400, { error: "invalid json" }); }
 
