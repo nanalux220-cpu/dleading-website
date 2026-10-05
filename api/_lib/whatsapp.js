@@ -15,7 +15,11 @@ const version = () => String(process.env.WHATSAPP_API_VERSION || "").trim() || "
 
 // Non-secret defaults for Dleading (env vars still override them).
 const DEFAULTS = { WHATSAPP_PHONE_NUMBER_ID: "1385944931264059" };
-const env = (k) => String(process.env[k] || "").trim() || DEFAULTS[k] || "";
+// Active phone number chosen at registration time (stored in Redis by /api/connect-number)
+// overrides the env var, so switching numbers needs no Vercel change.
+let activePhone = "";
+export const setActivePhone = (id) => { activePhone = /^\d{6,20}$/.test(String(id || "")) ? String(id) : ""; };
+const env = (k) => (k === "WHATSAPP_PHONE_NUMBER_ID" && activePhone) || String(process.env[k] || "").trim() || DEFAULTS[k] || "";
 export const whatsappEnv = env;
 export function whatsappConfigured() {
   return !!(env("WHATSAPP_ACCESS_TOKEN") && env("WHATSAPP_PHONE_NUMBER_ID"));

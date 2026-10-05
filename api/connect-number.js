@@ -8,7 +8,12 @@
  * The SMS code and PIN go straight to Meta; they're never stored or logged.
  */
 import { timingSafeEqual } from "node:crypto";
-import { whatsappEnv } from "./_lib/whatsapp.js";
+import { whatsappEnv, setActivePhone } from "./_lib/whatsapp.js";
+import { cmd, storeConfigured } from "./_lib/store.js";
+
+const WABA_ID = "1672795140622691"; // "Dleading Creative Design Ltd"
+// Numbers the owner has asked to connect (adding them is harmless; codes go to that phone).
+const ALLOWED_NEW = { "447383827715": { cc: "44", phone_number: "7383827715" } };
 
 const env = (k) => String(process.env[k] || "").trim();
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -47,7 +52,7 @@ export async function POST(request) {
   try { b = await request.json(); } catch { return json(400, { ok: false, error: "invalid json" }); }
   // "status" and "request_code" are harmless (the code only goes to the business phone), so they
   // don't need the key; request_code is capped. Verifying and registering still require the key.
-  const open = b.step === "status" || b.step === "request_code";
+  const open = b.step === "status" || b.step === "request_code" || b.step === "add_number";
   if (!open && !keyOk(b.key)) return json(401, { ok: false, error: "Wrong key. Use the WHATSAPP_VERIFY_TOKEN value from Vercel." });
   if (b.step === "request_code") {
     sent = sent.filter((t) => Date.now() - t < 60 * 60e3);
@@ -55,9 +60,27 @@ export async function POST(request) {
     sent.push(Date.now());
   }
   if (!env("WHATSAPP_ACCESS_TOKEN")) return json(503, { ok: false, error: "WHATSAPP_ACCESS_TOKEN not set in Vercel" });
-  const phone = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
+  if (storeConfigured()) { try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* env */ } }
+  // Target phone: an explicit phone_id that belongs to our WABA, else the active one.
+  let phone = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
+  if (b.phone_id) {
+    const list = await graph(`${WABA_ID}/phone_numbers?fields=id,display_phone_number`);
+    if (!list.ok) return json(502, list);
+    if (!(list.data?.data || []).some((n) => String(n.id) === String(b.phone_id))) return json(400, { ok: false, error: "That phone ID isn't in the Dleading WhatsApp account." });
+    phone = String(b.phone_id);
+  }
 
   switch (b.step) {
+    case "add_number": {
+      const digits = String(b.number || "").replace(/\D/g, "").replace(/^0/, "44");
+      const n = ALLOWED_NEW[digits];
+      if (!n) return json(400, { ok: false, error: "Only the agreed new number can be added here." });
+      const list = await graph(`${WABA_ID}/phone_numbers?fields=id,display_phone_number,status,code_verification_status`);
+      const existing = (list.data?.data || []).find((x) => String(x.display_phone_number || "").replace(/\D/g, "") === digits);
+      if (existing) return json(200, { ok: true, message: "Number already added.", data: existing });
+      const r = await graph(`${WABA_ID}/phone_numbers`, "POST", { cc: n.cc, phone_number: n.phone_number, verified_name: "Dleading Creative Design Ltd" });
+      return json(r.ok ? 200 : 502, r.ok ? { ok: true, message: "Number added.", data: r.data } : r);
+    }
     case "status": {
       const r = await graph(`${phone}?fields=display_phone_number,verified_name,status,code_verification_status,platform_type`);
       return json(r.ok ? 200 : 502, r);
@@ -77,7 +100,8 @@ export async function POST(request) {
       const pin = String(b.pin || "");
       if (!/^\d{6}$/.test(pin)) return json(400, { ok: false, error: "The PIN must be 6 digits." });
       const r = await graph(`${phone}/register`, "POST", { messaging_product: "whatsapp", pin });
-      return json(r.ok ? 200 : 502, r.ok ? { ok: true, message: "Registered on the Cloud API. Messages will now reach your AI." } : r);
+      if (r.ok && storeConfigured()) await cmd("SET", "wa:active_phone_id", phone);
+      return json(r.ok ? 200 : 502, r.ok ? { ok: true, message: "Registered on the Cloud API and set as the active AI number. Messages will now reach your AI." } : r);
     }
     default:
       return json(400, { ok: false, error: "unknown step" });

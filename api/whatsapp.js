@@ -14,7 +14,7 @@
  *   6. otherwise the SAME receptionist AI as the website, with this customer's history
  * Delivery statuses (sent / delivered / read / failed) are stored per message id.
  */
-import { validSignature, sendText, markRead, normaliseNumber, whatsappEnv } from "./_lib/whatsapp.js";
+import { validSignature, sendText, markRead, normaliseNumber, whatsappEnv, setActivePhone } from "./_lib/whatsapp.js";
 import { cmd, pipeline, getJSON, setJSON, claimOnce, storeConfigured } from "./_lib/store.js";
 import { runAgent } from "./_lib/agent.js";
 import { sanitizeState, notifyN8n } from "./_lib/tools.js";
@@ -43,6 +43,7 @@ export async function GET(request) {
 
   // Plain visit (no hub.* params): safe setup check. Shows ONLY whether settings exist, never their values.
   if (!mode && !p.has("hub.verify_token")) {
+    if (storeConfigured()) { try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* ignore */ } }
     const vt = envTrim("WHATSAPP_VERIFY_TOKEN");
     const live = p.get("live") === "1" ? await liveChecks() : undefined;
     return json(200, {
@@ -176,6 +177,7 @@ export async function POST(request) {
 
   let body;
   try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid json" }); }
+  try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* fall back to env */ }
   if (body.object !== "whatsapp_business_account") return json(200, { ignored: true });
 
   const summary = { messages: 0, duplicates: 0, statuses: 0, errors: 0 };
