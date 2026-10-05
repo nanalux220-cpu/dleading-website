@@ -19,6 +19,7 @@ import { cmd, pipeline, getJSON, setJSON, storeConfigured } from "./_lib/store.j
 import { sendTemplate, normaliseNumber, whatsappConfigured, setActivePhone } from "./_lib/whatsapp.js";
 import { sanitizeState } from "./_lib/tools.js";
 import { reply } from "./whatsapp.js";
+import { loadActive } from "./_lib/active.js";
 
 const MAX_BROADCAST = 100; // per request (keeps within the function time limit); send more in batches
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -66,7 +67,7 @@ async function messagesFor(num, limit = 200) {
 
 export async function GET(request) {
   const blocked = guard(request); if (blocked !== "ok") return blocked;
-  try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* env */ }
+  await loadActive();
   const p = new URL(request.url).searchParams;
   const action = p.get("action");
 
@@ -126,7 +127,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   const blocked = guard(request); if (blocked !== "ok") return blocked;
-  try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* env */ }
+  await loadActive();
   let b;
   try { b = await request.json(); } catch { return json(400, { error: "invalid json" }); }
 

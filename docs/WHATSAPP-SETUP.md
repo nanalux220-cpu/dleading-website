@@ -114,3 +114,12 @@ The `(page: …)` part is saved as the contact's **From page** in admin.
 - **Free-text replies only work within 24 hours** of the customer's last message. This is Meta's rule.
 - **Your phone's WhatsApp Business app:** if the number was moved to the Cloud API *without* coexistence, the app on the phone may no longer receive messages. Reply to customers from `/admin.html` instead.
 - After a handoff, the AI stays silent for 24 hours (`WHATSAPP_HANDOFF_HOURS`) or until you click **Hand back to AI**.
+
+## Connecting the existing WhatsApp Business App number (Coexistence)
+The number stays on the WhatsApp Business App with its chats. Use **/connect-whatsapp.html**:
+Meta Embedded Signup v4 with `extras: { version: "v4", featureType: "whatsapp_business_app_onboarding" }`.
+- Vercel env needed: `META_ES_CONFIG_ID` (Configuration ID from Embedded Signup Builder), `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` (setup key).
+- Meta app → Facebook Login for Business → Settings: add `https://www.creativedleading.co.uk` to Allowed domains for the JavaScript SDK, and turn on Login with the JavaScript SDK.
+- Webhook fields to subscribe: `messages`, `smb_message_echoes` (your replies from the phone app), `history`, `smb_app_state_sync`.
+- When you reply to a customer from the phone app, the AI stops replying to that customer (for WHATSAPP_HANDOFF_HOURS, default 24h, or until "Hand back to AI" in /admin.html).
+- The old register/PIN flow (/api/connect-number) is disabled because it would take the number off the app.

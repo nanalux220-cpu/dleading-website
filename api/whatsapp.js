@@ -17,6 +17,7 @@
 import { validSignature, sendText, markRead, normaliseNumber, whatsappEnv, setActivePhone } from "./_lib/whatsapp.js";
 import { cmd, pipeline, getJSON, setJSON, claimOnce, storeConfigured } from "./_lib/store.js";
 import { runAgent } from "./_lib/agent.js";
+import { loadActive } from "./_lib/active.js";
 import { sanitizeState, notifyN8n } from "./_lib/tools.js";
 
 const HISTORY_ITEMS = 24;          // messages of context given to the AI
@@ -43,7 +44,7 @@ export async function GET(request) {
 
   // Plain visit (no hub.* params): safe setup check. Shows ONLY whether settings exist, never their values.
   if (!mode && !p.has("hub.verify_token")) {
-    if (storeConfigured()) { try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* ignore */ } }
+    await loadActive();
     const vt = envTrim("WHATSAPP_VERIFY_TOKEN");
     const live = p.get("live") === "1" ? await liveChecks() : undefined;
     return json(200, {
@@ -79,12 +80,12 @@ export async function GET(request) {
  */
 async function graphGet(path) {
   const ver = envTrim("WHATSAPP_API_VERSION") || "v21.0";
-  const res = await fetch(`${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}/${path}`, { headers: { authorization: `Bearer ${envTrim("WHATSAPP_ACCESS_TOKEN")}` } });
+  const res = await fetch(`${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}/${path}`, { headers: { authorization: `Bearer ${whatsappEnv("WHATSAPP_ACCESS_TOKEN")}` } });
   return { ok: res.ok, data: await res.json().catch(() => ({})) };
 }
 async function graphPost(path) {
   const ver = envTrim("WHATSAPP_API_VERSION") || "v21.0";
-  const res = await fetch(`${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}/${path}`, { method: "POST", headers: { authorization: `Bearer ${envTrim("WHATSAPP_ACCESS_TOKEN")}` } });
+  const res = await fetch(`${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}/${path}`, { method: "POST", headers: { authorization: `Bearer ${whatsappEnv("WHATSAPP_ACCESS_TOKEN")}` } });
   return { ok: res.ok, data: await res.json().catch(() => ({})) };
 }
 const metaErr = (r) => `Meta error ${r.data?.error?.code ?? "?"}: ${String(r.data?.error?.message || "").slice(0, 140)}`;
@@ -96,7 +97,7 @@ async function findWabaIds() {
   ids.add("1672795140622691"); // "Dleading Creative Design Ltd" WABA (owns +44 7427 259935)
   ids.add("1090927923795967"); // API WABA (AI number +44 7383 827715)
   // Token debug tells us which WABAs this token can manage.
-  const dbg = await graphGet(`debug_token?input_token=${encodeURIComponent(envTrim("WHATSAPP_ACCESS_TOKEN"))}`);
+  const dbg = await graphGet(`debug_token?input_token=${encodeURIComponent(whatsappEnv("WHATSAPP_ACCESS_TOKEN"))}`);
   for (const g of dbg.data?.data?.granular_scopes || []) {
     if (/whatsapp_business_(management|messaging)/.test(g.scope)) for (const id of g.target_ids || []) ids.add(String(id));
   }
@@ -147,7 +148,7 @@ async function liveChecks() {
     const id = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
     const ver = envTrim("WHATSAPP_API_VERSION") || "v21.0";
     const res = await fetch(`${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}/${id}?fields=display_phone_number,verified_name,quality_rating`, {
-      headers: { authorization: `Bearer ${envTrim("WHATSAPP_ACCESS_TOKEN")}` },
+      headers: { authorization: `Bearer ${whatsappEnv("WHATSAPP_ACCESS_TOKEN")}` },
     });
     const d = await res.json().catch(() => ({}));
     out.whatsapp_token = res.ok
@@ -178,12 +179,20 @@ export async function POST(request) {
 
   let body;
   try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid json" }); }
-  try { setActivePhone(await cmd("GET", "wa:active_phone_id")); } catch { /* fall back to env */ }
+  await loadActive();
   if (body.object !== "whatsapp_business_account") return json(200, { ignored: true });
 
   const summary = { messages: 0, duplicates: 0, statuses: 0, errors: 0 };
   for (const entry of body.entry || []) {
     for (const change of entry.changes || []) {
+      // Coexistence: messages the owner sends from the WhatsApp Business App arrive as echoes.
+      if (change.field === "smb_message_echoes") {
+        for (const e of change.value?.message_echoes || []) {
+          try { if (e?.id && (await claimOnce(`wa:seen:${e.id}`, 7 * 86400))) { await handleEcho(e); summary.messages++; } }
+          catch (err) { summary.errors++; console.error(`[whatsapp] echo error: ${err.message}`); }
+        }
+        continue;
+      }
       if (change.field !== "messages") continue;
       const v = change.value || {};
       // Only handle events for OUR number.
@@ -208,6 +217,21 @@ export async function POST(request) {
   }
   await setJSON("wa:last_webhook", { at: now(), result: `OK: ${summary.messages} new message(s), ${summary.statuses} status update(s), ${summary.duplicates} duplicate(s), ${summary.errors} error(s)` }, 30 * 86400).catch(() => {});
   return json(200, { ok: true, ...summary });
+}
+
+/** Owner replied from the WhatsApp Business App: save it and let the human have the chat (AI pauses). */
+async function handleEcho(e) {
+  const num = normaliseNumber(e.to);
+  if (!num) return;
+  const text = textOf(e) || `[${e.type || "message"}]`;
+  const ts = e.timestamp ? new Date(Number(e.timestamp) * 1000).toISOString() : now();
+  await saveMessage(num, { id: e.id, dir: "out", text, ts, kind: "human_app", ok: true });
+  const state = sanitizeState(await getJSON(`wa:state:${num}`));
+  state.mode = "handoff";
+  if (!state.handoffs.length || Date.now() - Date.parse(state.handoffs[state.handoffs.length - 1].sentAt || 0) > 60e3) {
+    state.handoffs = [...state.handoffs.slice(-2), { id: `wa_${num}-app${Date.now().toString(36)}`, reason: "Owner replied from WhatsApp Business App", sentAt: ts }];
+  }
+  await setJSON(`wa:state:${num}`, state, STATE_TTL);
 }
 
 async function saveStatus(s) {
