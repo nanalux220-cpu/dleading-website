@@ -40,7 +40,7 @@ async function graph(path, { method = "GET", token, body } = {}) {
 }
 
 export function GET() {
-  return json(200, { appId: APP_ID(), configId: env("META_ES_CONFIG_ID"), graphVersion: VERSION() });
+  return json(200, { appId: APP_ID(), configId: env("META_ES_CONFIG_ID") || "2602858460231914", graphVersion: VERSION() });
 }
 
 const tries = new Map();
