@@ -131,6 +131,32 @@ async function ensureWabaSubscribed() {
   return `NOT FOUND: no WABA owning phone ${phoneId} (${notes.join("; ")})`;
 }
 
+/*
+ * Which Vercel variable holds what? Tests each candidate variable against Meta and reports
+ * only "valid for app X" / "not valid" — never the value, its length or any part of it.
+ * Helps catch credentials pasted into the wrong variable.
+ */
+const META_APP_ID = () => envTrim("META_APP_ID") || "1345357342001483";
+async function credentialCheck() {
+  const ver = envTrim("WHATSAPP_API_VERSION") || "v21.0";
+  const base = `${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}`;
+  const names = ["WHATSAPP_ACCESS_TOKEN", "WHATSAPP_APP_SECRET", "WHATSAPP_API_KEY", "WHATSAPP_VERIFY_TOKEN"];
+  const out = {};
+  for (const name of names) {
+    const v = envTrim(name);
+    if (!v) { out[name] = "not set"; continue; }
+    const found = [];
+    // As an access token: which app was it issued for?
+    const t = await fetch(`${base}/app?fields=id,name`, { headers: { authorization: `Bearer ${v}` } }).then(async (r) => ({ ok: r.ok, d: await r.json().catch(() => ({})) })).catch(() => ({ ok: false, d: {} }));
+    if (t.ok && t.d?.id) found.push(`valid ACCESS TOKEN for app ${t.d.id} (${t.d.name || "?"})${String(t.d.id) === META_APP_ID() ? "" : " — WRONG APP"}`);
+    // As an App Secret for the current app.
+    const s = await fetch(`${base}/oauth/access_token?client_id=${encodeURIComponent(META_APP_ID())}&client_secret=${encodeURIComponent(v)}&grant_type=client_credentials`).then((r) => r.ok).catch(() => false);
+    if (s) found.push(`valid APP SECRET for app ${META_APP_ID()}`);
+    out[name] = found.length ? found.join("; ") : "not a valid token or App Secret for this app";
+  }
+  return out;
+}
+
 // Real connectivity checks (no secret values returned). Throttled to protect Meta/Upstash quotas.
 let lastLive = { at: 0, result: null };
 async function liveChecks() {
@@ -160,6 +186,7 @@ async function liveChecks() {
     out.phone_status = st.ok ? `status=${st.data.status || "?"}, platform=${st.data.platform_type || "?"}, verification=${st.data.code_verification_status || "?"}, name=${st.data.name_status || "?"}` : metaErr(st);
   } catch (e) { out.phone_status = `FAILED: ${e.name}`; }
   try { out.waba_subscription = await ensureWabaSubscribed(); } catch (e) { out.waba_subscription = `FAILED: ${e.message}`; }
+  try { out.credential_check = await credentialCheck(); } catch (e) { out.credential_check = `FAILED: ${e.name}`; }
   lastLive = { at: Date.now(), result: out };
   return out;
 }
