@@ -224,8 +224,10 @@ async function liveChecks() {
 export async function POST(request) {
   const raw = await request.text();
   if (!validSignature(raw, request.headers.get("x-hub-signature-256"))) {
-    console.warn("[whatsapp] rejected: bad or missing signature");
-    if (storeConfigured()) await setJSON("wa:last_webhook", { at: now(), result: "REJECTED: signature did not match WHATSAPP_APP_SECRET" }, 30 * 86400).catch(() => {});
+    const hasSig = !!request.headers.get("x-hub-signature-256");
+    console.warn(`[whatsapp] rejected: ${hasSig ? "signature did not match the App Secret" : "no signature (not from Meta)"}`);
+    // Only Meta-signed attempts are recorded, so stray unsigned requests don't hide real problems.
+    if (hasSig && storeConfigured()) await setJSON("wa:last_webhook", { at: now(), result: "REJECTED: signature did not match the App Secret (WHATSAPP_APP_SECRET / WHATSAPP_API_KEY)" }, 30 * 86400).catch(() => {});
     return new Response("Invalid signature", { status: 401 });
   }
   if (!storeConfigured()) {
