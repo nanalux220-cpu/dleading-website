@@ -255,6 +255,11 @@ async function liveChecks() {
   try { out.credential_check = await credentialCheck(); } catch (e) { out.credential_check = `FAILED: ${e.name}`; }
   try { out.app_webhook = await appWebhookCheck(); } catch (e) { out.app_webhook = `FAILED: ${e.name}`; }
   try { out.token_permissions = await tokenScopes(); } catch (e) { out.token_permissions = `FAILED: ${e.name}`; }
+  try {
+    // A read under whatsapp_business_messaging (also counts toward Meta's App Review "API test calls").
+    const bp = await graphGet(`${whatsappEnv("WHATSAPP_PHONE_NUMBER_ID")}/whatsapp_business_profile?fields=about,websites,vertical`);
+    out.business_profile = bp.ok ? `OK: ${JSON.stringify(bp.data?.data?.[0] || {}).slice(0, 160)}` : metaErr(bp);
+  } catch (e) { out.business_profile = `FAILED: ${e.name}`; }
   lastLive = { at: Date.now(), result: out };
   return out;
 }
