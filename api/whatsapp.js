@@ -47,6 +47,7 @@ export async function GET(request) {
     await loadActive();
     const vt = envTrim("WHATSAPP_VERIFY_TOKEN");
     const live = p.get("live") === "1" ? await liveChecks() : undefined;
+    if (live && p.get("probe") === "send") live.send_probe = await sendProbe();
     return json(200, {
       ...(live ? { live_checks: live } : { tip: "Add ?live=1 to test the database and the WhatsApp token for real." }),
       endpoint: "ok",
@@ -176,6 +177,43 @@ async function appWebhookCheck() {
   return "could not read (no valid App Secret)";
 }
 
+// Exact Meta answer to one real send attempt. Sends only to the business's OWN number
+// (no customer is ever messaged) and at most once every 10 minutes. Last result is kept.
+async function sendProbe() {
+  const ver = envTrim("WHATSAPP_API_VERSION") || "v21.0";
+  const base = `${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}`;
+  if (storeConfigured() && !(await claimOnce("wa:send_probe_lock", 600))) {
+    const prev = await getJSON("wa:send_probe").catch(() => null);
+    return prev ? { ...prev, note: "last result (probe runs at most every 10 minutes)" } : "throttled";
+  }
+  const phoneId = whatsappEnv("WHATSAPP_PHONE_NUMBER_ID");
+  const info = await graphGet(`${phoneId}?fields=display_phone_number`);
+  const own = normaliseNumber(info.data?.display_phone_number || "");
+  if (!own) return `could not read own number: ${metaErr(info)}`;
+  const r = await fetch(`${base}/${phoneId}/messages`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${whatsappEnv("WHATSAPP_ACCESS_TOKEN")}`, "content-type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", to: own, type: "text", text: { body: "Dleading system check (no action needed)." } }),
+  });
+  const d = await r.json().catch(() => ({}));
+  const e = d.error || {};
+  const out = r.ok
+    ? { at: now(), result: "SENT OK", message_id: d.messages?.[0]?.id || "?" }
+    : { at: now(), result: "META REJECTED", http: r.status, code: e.code, subcode: e.error_subcode, type: e.type, message: String(e.message || "").slice(0, 200), details: String(e.error_data?.details || e.error_user_msg || "").slice(0, 300) };
+  if (storeConfigured()) await setJSON("wa:send_probe", out, 7 * 86400).catch(() => {});
+  return out;
+}
+
+// What the access token is allowed to do, as Meta records it (no token value returned).
+async function tokenScopes() {
+  const t = whatsappEnv("WHATSAPP_ACCESS_TOKEN");
+  const r = await graphGet(`debug_token?input_token=${encodeURIComponent(t)}`);
+  const d = r.data?.data;
+  if (!r.ok || !d) return metaErr(r);
+  const gs = (d.granular_scopes || []).map((g) => `${g.scope}${g.target_ids ? `→[${g.target_ids.join(",")}]` : ""}`);
+  return `app=${d.app_id}, type=${d.type}, valid=${d.is_valid}, expires=${d.expires_at ? new Date(d.expires_at * 1000).toISOString() : "never"}, scopes=[${(d.scopes || []).join(", ")}], granular=[${gs.join("; ")}]`;
+}
+
 // Real connectivity checks (no secret values returned). Throttled to protect Meta/Upstash quotas.
 let lastLive = { at: 0, result: null };
 async function liveChecks() {
@@ -216,6 +254,7 @@ async function liveChecks() {
   try { out.waba_subscription = await ensureWabaSubscribed(); } catch (e) { out.waba_subscription = `FAILED: ${e.message}`; }
   try { out.credential_check = await credentialCheck(); } catch (e) { out.credential_check = `FAILED: ${e.name}`; }
   try { out.app_webhook = await appWebhookCheck(); } catch (e) { out.app_webhook = `FAILED: ${e.name}`; }
+  try { out.token_permissions = await tokenScopes(); } catch (e) { out.token_permissions = `FAILED: ${e.name}`; }
   lastLive = { at: Date.now(), result: out };
   return out;
 }
