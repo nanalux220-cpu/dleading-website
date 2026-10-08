@@ -24,6 +24,8 @@ http.createServer(async (req, res) => {
     for await (const c of req) body += c;
     const headers = new Headers();
     for (const [k, v] of Object.entries(req.headers)) if (v !== undefined) headers.set(k, Array.isArray(v) ? v.join(", ") : v);
+    // fetch's Request drops "host"; Vercel passes it as x-forwarded-host, so mirror that locally.
+    if (!headers.has("x-forwarded-host") && req.headers.host) headers.set("x-forwarded-host", req.headers.host);
     const out = await handler(new Request(url, { method: req.method, headers, body: ["GET", "HEAD"].includes(req.method) ? undefined : body }));
     const h = {};
     out.headers.forEach((v, k) => { h[k] = v; });

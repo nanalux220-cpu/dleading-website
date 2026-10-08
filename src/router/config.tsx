@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import type { RouteObject } from "react-router-dom";
 import NotFound from "../pages/NotFound";
 import Home from "../pages/home/page";
@@ -17,6 +18,9 @@ import CookiePolicy from "../pages/cookie-policy/page";
 import TermsConditions from "../pages/terms/page";
 import FAQPage from "../pages/faq/page";
 
+// Growth Engine dashboard: separate lazy chunk so the marketing pages stay light.
+const GrowthApp = lazy(() => import("../growth/GrowthApp"));
+
 const routes: RouteObject[] = [
   { path: "/", element: <Home /> },
   { path: "/about", element: <About /> },
@@ -34,6 +38,7 @@ const routes: RouteObject[] = [
   { path: "/cookie-policy", element: <CookiePolicy /> },
   { path: "/terms", element: <TermsConditions /> },
   { path: "/faq", element: <FAQPage /> },
+  { path: "/app/*", element: <Suspense fallback={null}><GrowthApp /></Suspense> },
   { path: "*", element: <NotFound /> },
 ];
 

@@ -77,6 +77,6 @@ export default defineConfig({
     port: 3000,
     host: "0.0.0.0",
     // Local only: forward /api to scripts/dev-api.mjs (npm run dev:api). Vercel serves /api itself.
-    proxy: { "/api": "http://localhost:3001" },
+    proxy: { "/api": { target: "http://localhost:3001", headers: { "x-forwarded-host": "localhost:3000" } } },
   },
 });

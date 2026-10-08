@@ -277,18 +277,29 @@ function MobileBottomCTA() {
   );
 }
 
+// Marketing-site extras (chat bubble, WhatsApp button, popups) don't belong inside the dashboard.
+function MarketingExtras() {
+  const { pathname } = useLocation();
+  if (pathname === "/app" || pathname.startsWith("/app/")) return null;
+  return (
+    <>
+      <WhatsAppButton />
+      <AIChatWidget />
+      <BackToTop />
+      <MobileBottomCTA />
+      <LeadPopup />
+      <CookieBanner />
+    </>
+  );
+}
+
 function App() {
   return (
     <I18nextProvider i18n={i18n}>
       <BrowserRouter basename={__BASE_PATH__}>
         <ScrollToTop />
         <AppRoutes />
-        <WhatsAppButton />
-        <AIChatWidget />
-        <BackToTop />
-        <MobileBottomCTA />
-        <LeadPopup />
-        <CookieBanner />
+        <MarketingExtras />
       </BrowserRouter>
     </I18nextProvider>
   );
