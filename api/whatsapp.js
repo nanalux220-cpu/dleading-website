@@ -19,6 +19,8 @@ import { cmd, pipeline, getJSON, setJSON, claimOnce, storeConfigured } from "./_
 import { runAgent } from "./_lib/agent.js";
 import { loadActive } from "./_lib/active.js";
 import { sanitizeState, notifyN8n } from "./_lib/tools.js";
+// Growth Engine: mirrors messages/leads into the dashboard. No-op without a database; never throws.
+import { mirrorWhatsApp, mirrorWhatsAppState, mirrorWhatsAppStatus } from "./_lib/ge/bridge.js";
 
 const HISTORY_ITEMS = 24;          // messages of context given to the AI
 const HANDOFF_HOURS = Number(process.env.WHATSAPP_HANDOFF_HOURS || 24); // AI stays silent this long after a handoff
@@ -328,6 +330,8 @@ async function handleEcho(e) {
   const text = textOf(e) || `[${e.type || "message"}]`;
   const ts = e.timestamp ? new Date(Number(e.timestamp) * 1000).toISOString() : now();
   await saveMessage(num, { id: e.id, dir: "out", text, ts, kind: "human_app", ok: true });
+  await mirrorWhatsApp({ num, direction: "out", kind: "human_app", text, wamid: e.id, ts });
+  await mirrorWhatsAppState(num, { handler: "human", reason: "Owner replied from WhatsApp Business App" });
   const state = sanitizeState(await getJSON(`wa:state:${num}`));
   state.mode = "handoff";
   if (!state.handoffs.length || Date.now() - Date.parse(state.handoffs[state.handoffs.length - 1].sentAt || 0) > 60e3) {
@@ -347,6 +351,7 @@ async function saveStatus(s) {
     to: s.recipient_id || prev?.to || "",
     ...(s.errors?.length ? { error: `${s.errors[0].code} ${String(s.errors[0].title || "").slice(0, 120)}` } : {}),
   }, 60 * 86400);
+  await mirrorWhatsAppStatus(s.id, s.status);
 }
 
 function textOf(m) {
@@ -370,6 +375,7 @@ export async function reply(num, text, kind = "ai") {
   const r = await sendText(num, text);
   await saveMessage(num, { id: r.id || null, dir: "out", text, ts: now(), kind, ok: r.ok, ...(r.ok ? {} : { error: r.error }) });
   if (r.ok && r.id) await setJSON(`wa:status:${r.id}`, { status: "sent", ts: now(), to: num }, 60 * 86400);
+  await mirrorWhatsApp({ num, direction: "out", kind, text, wamid: r.id || null, ok: r.ok, error: r.ok ? "" : r.error });
   return r;
 }
 
@@ -402,6 +408,7 @@ async function handleMessage(m, profileName) {
     ["LTRIM", `wa:msgs:${num}`, 0, 499],
   ]);
   markRead(m.id).catch(() => {});
+  await mirrorWhatsApp({ num, name: c.name, direction: "in", text: text || `[${m.type}]`, wamid: m.id, ts });
 
   if (isNew) {
     // New lead alert (same n8n lead workflow; same lead id the AI uses later, so one Sheet row per person).
@@ -445,6 +452,7 @@ async function handleMessage(m, profileName) {
     state.mode = "handoff";
     await setJSON(`wa:state:${num}`, state, STATE_TTL);
     await reply(num, REF_HANDOFF, "system");
+    await mirrorWhatsAppState(num, { handler: "human", reason: `Website handoff ${ref[1].toUpperCase()}` });
     if (!r.ok) console.error("[whatsapp] website handoff notify failed");
     return;
   }
@@ -474,6 +482,7 @@ async function handleMessage(m, profileName) {
   };
   const out = await runAgent({ messages: history, ctx, channel: "whatsapp" });
   await setJSON(`wa:state:${num}`, out.state, STATE_TTL);
+  await mirrorWhatsAppState(num, { handler: out.state.mode === "handoff" ? "human" : "ai", leadData: out.state.lead?.data || null });
 
   if (out.ended) await setJSON(`wa:contact:${num}`, { ...c, muted_until: new Date(Date.now() + MUTE_HOURS * 3600e3).toISOString() });
   const text_ = out.ok ? out.reply : AI_DOWN;

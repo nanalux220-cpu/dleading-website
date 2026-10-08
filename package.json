@@ -13,21 +13,26 @@
     "test:api": "node tests/api.test.mjs",
     "test:live": "node tests/scenarios.live.mjs",
     "test:whatsapp": "node tests/whatsapp.test.mjs",
-    "test": "node tests/api.test.mjs && node tests/whatsapp.test.mjs",
+    "test": "node tests/api.test.mjs && node tests/whatsapp.test.mjs && node tests/ge.test.mjs",
+    "test:ge": "node tests/ge.test.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "vercel-build": "node scripts/migrate.mjs --if-configured --soft && vite build",
+    "dev:api": "node scripts/dev-api.mjs",
     "legal": "node scripts/build-legal-pages.mjs"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "4.0.2",
+    "@supabase/supabase-js": "2.57.4",
+    "firebase": "12.0.0",
     "i18next": "^25.3.2",
+    "i18next-browser-languagedetector": "^8.2.0",
+    "lucide-react": "^0.469.0",
+    "postgres": "3.4.7",
     "react": "^19.1.2",
     "react-dom": "^19.1.2",
     "react-i18next": "^15.6.0",
     "react-router-dom": "^7.6.3",
-    "i18next-browser-languagedetector": "^8.2.0",
-    "firebase": "12.0.0",
-    "@supabase/supabase-js": "2.57.4",
-    "@stripe/react-stripe-js": "4.0.2",
-    "recharts": "3.2.0",
-    "lucide-react": "^0.469.0"
+    "recharts": "3.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
@@ -39,13 +44,13 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "jiti": "^2.6.1",
     "postcss": "^8.5.6",
+    "source-map": "^0.7.6",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
-    "vite": "^8.0.1",
     "unplugin-auto-import": "^19.3.0",
-    "source-map": "^0.7.6",
-    "jiti": "^2.6.1"
+    "vite": "^8.0.1"
   }
 }
