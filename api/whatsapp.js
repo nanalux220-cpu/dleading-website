@@ -157,6 +157,25 @@ async function credentialCheck() {
   return out;
 }
 
+// What Meta has on file for this app's webhook: callback URL, active flag and subscribed fields.
+async function appWebhookCheck() {
+  const ver = envTrim("WHATSAPP_API_VERSION") || "v21.0";
+  const base = `${process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com"}/${ver}`;
+  for (const name of ["WHATSAPP_APP_SECRET", "WHATSAPP_API_KEY"]) {
+    const secret = envTrim(name);
+    if (!secret) continue;
+    const r = await fetch(`${base}/${META_APP_ID()}/subscriptions`, { headers: { authorization: `Bearer ${META_APP_ID()}|${secret}` } });
+    if (!r.ok) continue;
+    const d = await r.json().catch(() => ({}));
+    const wa = (d.data || []).find((s) => s.object === "whatsapp_business_account");
+    if (!wa) return "NOT SET: no WhatsApp webhook on the app";
+    const fields = (wa.fields || []).map((f) => f.name).sort();
+    const needed = ["messages", "smb_message_echoes", "history", "smb_app_state_sync"].filter((f) => !fields.includes(f));
+    return `${wa.active ? "active" : "INACTIVE"}, url=${wa.callback_url}, fields=[${fields.join(", ")}]${needed.length ? ` | missing: ${needed.join(", ")}` : ""}`;
+  }
+  return "could not read (no valid App Secret)";
+}
+
 // Real connectivity checks (no secret values returned). Throttled to protect Meta/Upstash quotas.
 let lastLive = { at: 0, result: null };
 async function liveChecks() {
@@ -196,6 +215,7 @@ async function liveChecks() {
   } catch (e) { out.phone_health = `FAILED: ${e.name}`; }
   try { out.waba_subscription = await ensureWabaSubscribed(); } catch (e) { out.waba_subscription = `FAILED: ${e.message}`; }
   try { out.credential_check = await credentialCheck(); } catch (e) { out.credential_check = `FAILED: ${e.name}`; }
+  try { out.app_webhook = await appWebhookCheck(); } catch (e) { out.app_webhook = `FAILED: ${e.name}`; }
   lastLive = { at: Date.now(), result: out };
   return out;
 }
