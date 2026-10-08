@@ -50,7 +50,7 @@ export async function GET(request) {
     return json(200, {
       ...(live ? { live_checks: live } : { tip: "Add ?live=1 to test the database and the WhatsApp token for real." }),
       endpoint: "ok",
-      callback_url: `https://${request.headers.get("x-forwarded-host") || request.headers.get("host") || new URL(request.url).host}/api/whatsapp`,
+      callback_url: `https://${request.headers.get("x-forwarded-host") || request.headers.get("host") || new URL(request.url).host}${new URL(request.url).pathname.replace(/\/+$/, "") || "/api/whatsapp"}`,
       note: "Use callback_url exactly as shown in Meta (Meta does not follow redirects).",
       settings: {
         WHATSAPP_VERIFY_TOKEN: vt ? `set (${vt.length} characters)` : "MISSING",
