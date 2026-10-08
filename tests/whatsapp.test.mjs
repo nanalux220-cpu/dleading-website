@@ -268,7 +268,7 @@ check("events for another phone number id ignored", log.claude.length === c5, nu
 const es = await import(new URL("../api/embedded-signup.js", import.meta.url).href);
 process.env.META_ES_CONFIG_ID = "cfg123"; // env overrides the built-in default
 let er = await es.GET(); const ecfg = await er.json();
-check("ES config: app id + config id exposed (no secrets)", ecfg.appId === "1565214158224377" && ecfg.configId === "cfg123" && !JSON.stringify(ecfg).includes("secret"), ecfg);
+check("ES config: app id + config id exposed (no secrets)", ecfg.appId === "1345357342001483" && ecfg.configId === "cfg123" && !JSON.stringify(ecfg).includes("secret"), ecfg);
 const esPost = (b) => es.POST(new Request("https://x/api/embedded-signup", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "5.5.5.5" }, body: JSON.stringify(b) }));
 er = await esPost({ key: "wrong", code: "GOODCODE", waba_id: "777000", phone_number_id: "888000" });
 check("ES: wrong key rejected", er.status === 401 && log.es.length === 0, er.status);

@@ -11,14 +11,14 @@
  * Coexistence keeps the number on the WhatsApp Business App with its chats.
  * This endpoint NEVER calls /register, /deregister, request_code or deletes anything.
  *
- * Env: META_APP_ID (default 1565214158224377), META_ES_CONFIG_ID (Embedded Signup configuration ID),
+ * Env: META_APP_ID (default 1345357342001483), META_ES_CONFIG_ID (Embedded Signup configuration ID),
  *      WHATSAPP_APP_SECRET, WHATSAPP_VERIFY_TOKEN (used as the owner key), WHATSAPP_API_VERSION.
  */
 import { timingSafeEqual } from "node:crypto";
 import { cmd, pipeline, storeConfigured } from "./_lib/store.js";
 
 const env = (k) => String(process.env[k] || "").trim();
-const APP_ID = () => env("META_APP_ID") || "1565214158224377";
+const APP_ID = () => env("META_APP_ID") || "1345357342001483";
 const VERSION = () => env("WHATSAPP_API_VERSION") || "v21.0";
 const GRAPH = () => process.env.WHATSAPP_GRAPH_BASE || "https://graph.facebook.com";
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -40,7 +40,7 @@ async function graph(path, { method = "GET", token, body } = {}) {
 }
 
 export function GET() {
-  return json(200, { appId: APP_ID(), configId: env("META_ES_CONFIG_ID") || "2602858460231914", graphVersion: VERSION() });
+  return json(200, { appId: APP_ID(), configId: env("META_ES_CONFIG_ID"), graphVersion: VERSION() });
 }
 
 const tries = new Map();
