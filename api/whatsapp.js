@@ -185,6 +185,15 @@ async function liveChecks() {
     const st = await graphGet(`${whatsappEnv("WHATSAPP_PHONE_NUMBER_ID")}?fields=status,platform_type,code_verification_status,name_status`);
     out.phone_status = st.ok ? `status=${st.data.status || "?"}, platform=${st.data.platform_type || "?"}, verification=${st.data.code_verification_status || "?"}, name=${st.data.name_status || "?"}` : metaErr(st);
   } catch (e) { out.phone_status = `FAILED: ${e.name}`; }
+  try {
+    // Meta's own readiness check: can this number send messages, and if not, why.
+    const h = await graphGet(`${whatsappEnv("WHATSAPP_PHONE_NUMBER_ID")}?fields=health_status,is_on_biz_app,platform_type`);
+    if (h.ok) {
+      const hs = h.data.health_status || {};
+      const issues = (hs.entities || []).flatMap((e) => (e.errors || []).map((x) => `${e.entity_type}: ${x.error_code} ${String(x.error_description || "").slice(0, 120)}${x.possible_solution ? ` → ${String(x.possible_solution).slice(0, 120)}` : ""}`));
+      out.phone_health = `can_send_message=${hs.can_send_message || "?"}, on_whatsapp_business_app=${h.data.is_on_biz_app ?? "?"}${issues.length ? ` | ${issues.join(" | ")}` : ""}`;
+    } else out.phone_health = metaErr(h);
+  } catch (e) { out.phone_health = `FAILED: ${e.name}`; }
   try { out.waba_subscription = await ensureWabaSubscribed(); } catch (e) { out.waba_subscription = `FAILED: ${e.message}`; }
   try { out.credential_check = await credentialCheck(); } catch (e) { out.credential_check = `FAILED: ${e.name}`; }
   lastLive = { at: Date.now(), result: out };
