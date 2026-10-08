@@ -270,6 +270,7 @@ process.env.META_ES_CONFIG_ID = "cfg123"; // env overrides the built-in default
 let er = await es.GET(); const ecfg = await er.json();
 check("ES config: app id + config id exposed (no secrets)", ecfg.appId === "1345357342001483" && ecfg.configId === "cfg123" && !JSON.stringify(ecfg).includes("secret"), ecfg);
 const esPost = (b) => es.POST(new Request("https://x/api/embedded-signup", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "5.5.5.5" }, body: JSON.stringify(b) }));
+log.es.length = 0; // live checks above may also call oauth
 er = await esPost({ key: "wrong", code: "GOODCODE", waba_id: "777000", phone_number_id: "888000" });
 check("ES: wrong key rejected", er.status === 401 && log.es.length === 0, er.status);
 er = await esPost({ key: "test-verify-token", code: "BAD", waba_id: "777000", phone_number_id: "888000" });
