@@ -29,13 +29,18 @@ export function whatsappConfigured() {
 }
 
 /** Verify Meta's X-Hub-Signature-256 header against the raw request body. */
+// The App Secret normally lives in WHATSAPP_APP_SECRET; WHATSAPP_API_KEY is accepted too
+// (credentials are sometimes saved under that name). Both are server-side secrets.
 export function validSignature(rawBody, header) {
-  const secret = String(process.env.WHATSAPP_APP_SECRET || "").trim();
-  if (!secret || typeof header !== "string" || !header.startsWith("sha256=")) return false;
-  const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+  if (typeof header !== "string" || !header.startsWith("sha256=")) return false;
   const given = header.slice(7);
-  if (given.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(given, "hex"), Buffer.from(expected, "hex"));
+  for (const name of ["WHATSAPP_APP_SECRET", "WHATSAPP_API_KEY"]) {
+    const secret = String(process.env[name] || "").trim();
+    if (!secret) continue;
+    const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+    if (given.length === expected.length && timingSafeEqual(Buffer.from(given, "hex"), Buffer.from(expected, "hex"))) return true;
+  }
+  return false;
 }
 
 /** Digits only, no "+" (the format Meta uses for wa_id). */
