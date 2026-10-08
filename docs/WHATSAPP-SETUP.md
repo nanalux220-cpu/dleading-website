@@ -31,7 +31,7 @@ Meta talks to Vercel directly. That's the most reliable option, because the secu
 
 ## Step 2 — a permanent WhatsApp token (the 24-hour one will stop working)
 1. Go to **business.facebook.com** → **Settings** (gear icon) → **Users → System users** → **Add**. Name it `dleading-api` and choose role **Admin**.
-2. Select it → **Assign assets** → **Apps** → your app (ID `1565214158224377`) → **Full control** → **Save**.
+2. Select it → **Assign assets** → **Apps** → your app (ID `1345357342001483`) → **Full control** → **Save**.
 3. Assign assets again: **WhatsApp accounts** → your account (`562742200250790`) → **Full control** → **Save**.
 4. Click **Generate new token** → choose your app → expiry **Never** → tick `whatsapp_business_messaging` and `whatsapp_business_management` → **Generate**. Copy it straight into Vercel (Step 4). Never paste it anywhere else.
 
