@@ -12,6 +12,9 @@
     "api/whatsapp.js": {
       "maxDuration": 30
     },
+    "api/webhook/whatsapp.js": {
+      "maxDuration": 30
+    },
     "api/admin.js": {
       "maxDuration": 60
     },
